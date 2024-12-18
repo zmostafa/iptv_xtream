@@ -1,0 +1,12 @@
+[package]
+name = "iptv_xtream"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+reqwest = { version = "0.12", features = ["json"] } # HTTP client for Xtream Codes API
+serde = { version = "1.0", features = ["derive"] }  # For JSON serialization/deserialization
+tokio = { version = "1.0", features = ["full"] }    # Async runtime
+serde_json = "1.0"                                  # JSON parsing
+clap = { version = "4.5", features = ["derive"] }   # Command-line argument parsing
+chrono = "0.4"  # Added for date manipulation
