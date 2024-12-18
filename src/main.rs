@@ -1,10 +1,11 @@
+// Updated main.rs
 mod api;
 mod models;
 
-use crate::api::{fetch_categories, fetch_streams, login, play_stream};
-use crate::models::{Category, Stream};
+use crate::api::{fetch_categories, fetch_series_info, fetch_streams, login, play_stream};
 use chrono::{TimeZone, Utc};
 use clap::Parser;
+use std::io;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -43,12 +44,16 @@ async fn main() {
     loop {
         println!("\nSelect a category:\n1. Live Streams\n2. Movies (VOD)\n3. Series\nType 'exit' to quit.");
         let mut main_choice = String::new();
-        std::io::stdin().read_line(&mut main_choice).expect("Failed to read input");
+        io::stdin()
+            .read_line(&mut main_choice)
+            .expect("Failed to read input");
 
         match main_choice.trim() {
-            "1" => handle_category(&config, "get_live_categories", "get_live_streams", "live").await,
+            "1" => {
+                handle_category(&config, "get_live_categories", "get_live_streams", "live").await
+            }
             "2" => handle_category(&config, "get_vod_categories", "get_vod_streams", "movie").await,
-            "3" => handle_category(&config, "get_series_categories", "get_series", "series").await,
+            "3" => handle_series(&config).await,
             "exit" => {
                 println!("Exiting the application. Goodbye!");
                 break;
@@ -58,18 +63,32 @@ async fn main() {
     }
 }
 
-async fn handle_category(config: &Config, category_action: &str, stream_action: &str, content_type: &str) {
-    match fetch_categories(&config.server, &config.username, &config.password, category_action).await
+async fn handle_category(
+    config: &Config,
+    category_action: &str,
+    stream_action: &str,
+    content_type: &str,
+) {
+    match fetch_categories(
+        &config.server,
+        &config.username,
+        &config.password,
+        category_action,
+    )
+    .await
     {
         Ok(categories) => {
             println!("\nAvailable Categories:");
             for category in &categories {
-                println!("- {} (ID: {})", category.category_name, category.category_id);
+                println!(
+                    "- {} (ID: {})",
+                    category.category_name, category.category_id
+                );
             }
 
             println!("\nEnter a Category ID to view its streams:");
             let mut category_id = String::new();
-            std::io::stdin()
+            io::stdin()
                 .read_line(&mut category_id)
                 .expect("Failed to read input");
 
@@ -84,19 +103,21 @@ async fn handle_category(config: &Config, category_action: &str, stream_action: 
             {
                 Ok(streams) => {
                     println!("\nAvailable Streams:");
-                    let mut stream_extension = String::new();
                     for stream in &streams {
-                        println!("- {} (ID: {}), extension: {}", stream.name, stream.stream_id, stream.container_extension);
-                        stream_extension = stream.container_extension.clone();
+                        println!(
+                            "- {}: {} (ID: {})",
+                            stream.get_type(),
+                            stream.get_name(),
+                            stream.get_id()
+                        );
                     }
 
                     println!("\nEnter a Stream ID to play:");
                     let mut stream_id = String::new();
-                    std::io::stdin()
+                    io::stdin()
                         .read_line(&mut stream_id)
                         .expect("Failed to read input");
 
-                    // Construct the URL dynamically based on content type
                     let stream_url = format!(
                         "{}/{}/{}/{}/{}.{}",
                         config.server,
@@ -104,8 +125,11 @@ async fn handle_category(config: &Config, category_action: &str, stream_action: 
                         config.username,
                         config.password,
                         stream_id.trim(),
-                        // if content_type == "vod" { "mkv" } else { "ts" }
-                        stream_extension
+                        streams
+                            .iter()
+                            .find(|s| s.get_id() == stream_id.trim())
+                            .map(|s| s.get_extension())
+                            .unwrap_or_else(|| "ts".to_string())
                     );
 
                     play_stream(&stream_url);
@@ -117,3 +141,125 @@ async fn handle_category(config: &Config, category_action: &str, stream_action: 
     }
 }
 
+async fn handle_series(config: &Config) {
+    match fetch_categories(
+        &config.server,
+        &config.username,
+        &config.password,
+        "get_series_categories",
+    )
+    .await
+    {
+        Ok(categories) => {
+            println!("\nAvailable Categories:");
+            for category in &categories {
+                println!(
+                    "- {} (ID: {})",
+                    category.category_name, category.category_id
+                );
+            }
+        }
+        Err(e) => println!("Failed to fetch series categories: {}", e),
+    }
+    println!("\nEnter a Category ID to view its streams:");
+    let mut category_id = String::new();
+    io::stdin()
+        .read_line(&mut category_id)
+        .expect("Failed to read input");
+
+    match fetch_streams(
+        &config.server,
+        &config.username,
+        &config.password,
+        category_id.trim(),
+        "get_series",
+    )
+    .await
+    {
+        Ok(streams) => {
+            println!("\nAvailable Streams:");
+            for stream in &streams {
+                println!(
+                    "- {}: {} (ID: {})",
+                    stream.get_type(),
+                    stream.get_name(),
+                    stream.get_id()
+                );
+            }
+            println!("\nEnter the Series ID to fetch details:");
+            let mut series_id = String::new();
+            io::stdin()
+                .read_line(&mut series_id)
+                .expect("Failed to read input");
+
+            match fetch_series_info(
+                &config.server,
+                &config.username,
+                &config.password,
+                series_id.trim(),
+            )
+            .await
+            {
+                Ok(series_info) => {
+                    println!("\nSeries Info:");
+                    println!("Name: {}", series_info.info.name);
+                    println!("Plot: {}", series_info.info.plot);
+                    println!("Cast: {}", series_info.info.cast);
+                    println!("Director: {:?}", series_info.info.director);
+                    println!("Genre: {}", series_info.info.genre);
+
+                    println!("\nSeasons:");
+                    for season in &series_info.seasons {
+                        println!(
+                            "- Season {} (Episodes: {})",
+                            season.season_number, season.episode_count
+                        );
+                    }
+
+                    println!("\nEnter a Season Number to view episodes:");
+                    let mut season_choice = String::new();
+                    io::stdin()
+                        .read_line(&mut season_choice)
+                        .expect("Failed to read input");
+                    let season_choice: u32 = season_choice.trim().parse().unwrap_or(0);
+
+                    if let Some(episodes) = series_info.episodes.get(&season_choice.to_string()) {
+                        println!("\nEpisodes:");
+                        for episode in episodes {
+                            println!(
+                                "- {}: {} (ID: {})",
+                                episode.episode_num, episode.title, episode.id
+                            );
+                        }
+
+                        println!("\nEnter an Episode ID to play:");
+                        let mut episode_id = String::new();
+                        io::stdin()
+                            .read_line(&mut episode_id)
+                            .expect("Failed to read input");
+
+                        if let Some(episode) = episodes.iter().find(|ep| ep.id == episode_id.trim())
+                        {
+                            let stream_url = format!(
+                                "{}/series/{}/{}/{}.{}",
+                                config.server,
+                                config.username,
+                                config.password,
+                                episode.id,
+                                episode.container_extension
+                            );
+
+                            play_stream(&stream_url);
+                        } else {
+                            println!("Invalid Episode ID.");
+                        }
+                    } else {
+                        println!("Invalid Season Number.");
+                    }
+                }
+                Err(e) => println!("Failed to fetch series info: {}", e),
+            }
+        }
+        Err(e) => println!("Failed to fetch series: {}", e),
+    }
+}
