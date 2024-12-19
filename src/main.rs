@@ -1,265 +1,251 @@
-// Updated main.rs
 mod api;
 mod models;
+mod storage;
 
-use crate::api::{fetch_categories, fetch_series_info, fetch_streams, login, play_stream};
-use chrono::{TimeZone, Utc};
-use clap::Parser;
-use std::io;
+use crate::api::{fetch_and_store_categories, fetch_and_store_streams, login};
+use crate::models::{Category, StreamVariant};
+use crate::storage::{load_credentials, save_credentials, Credentials};
+use eframe::egui;
+use std::process::{Child, Command, Stdio};
 
-#[derive(Parser, Debug)]
-#[command(author, version, about)]
-struct Config {
-    #[arg(short, long)]
+struct IPTVApp {
+    db: sled::Db,
     server: String,
-    #[arg(short, long)]
     username: String,
-    #[arg(short, long)]
     password: String,
+    login_status: String,
+    live_categories: Vec<Category>,
+    vod_categories: Vec<Category>,
+    streams: Vec<StreamVariant>,
+    mpv_process: Option<Child>,
+    current_view: View,
 }
 
-#[tokio::main]
-async fn main() {
-    let config = Config::parse();
+enum View {
+    Login,
+    MainMenu,
+    Categories(String), // Live or VOD
+    Streams(String),    // Category ID
+    Playback(String),   // Stream URL
+}
 
-    match login(&config.server, &config.username, &config.password).await {
-        Ok(login_data) => {
-            println!("Login Successful!");
-            println!("User: {}", login_data.user_info.username);
-            println!("Status: {}", login_data.user_info.status);
-
-            if let Some(exp_date_str) = login_data.user_info.exp_date {
-                if let Ok(exp_timestamp) = exp_date_str.parse::<i64>() {
-                    let exp_date = Utc.timestamp_opt(exp_timestamp, 0).unwrap();
-                    println!("Expires: {}", exp_date.format("%e %B %Y"));
-                }
-            }
-        }
-        Err(e) => {
-            println!("Failed to login: {}", e);
-            return;
-        }
-    }
-
-    loop {
-        println!("\nSelect a category:\n1. Live Streams\n2. Movies (VOD)\n3. Series\nType 'exit' to quit.");
-        let mut main_choice = String::new();
-        io::stdin()
-            .read_line(&mut main_choice)
-            .expect("Failed to read input");
-
-        match main_choice.trim() {
-            "1" => {
-                handle_category(&config, "get_live_categories", "get_live_streams", "live").await
-            }
-            "2" => handle_category(&config, "get_vod_categories", "get_vod_streams", "movie").await,
-            "3" => handle_series(&config).await,
-            "exit" => {
-                println!("Exiting the application. Goodbye!");
-                break;
-            }
-            _ => println!("Invalid choice. Please try again."),
+impl Default for IPTVApp {
+    fn default() -> Self {
+        let creds = load_credentials().unwrap_or_default();
+        Self {
+            db: sled::open("iptv.db").expect("Failed to open database"),
+            server: creds.server,
+            username: creds.username,
+            password: creds.password,
+            login_status: "Not Logged In".to_string(),
+            live_categories: vec![],
+            vod_categories: vec![],
+            streams: vec![],
+            mpv_process: None,
+            current_view: View::Login,
         }
     }
 }
 
-async fn handle_category(
-    config: &Config,
-    category_action: &str,
-    stream_action: &str,
-    content_type: &str,
-) {
-    match fetch_categories(
-        &config.server,
-        &config.username,
-        &config.password,
-        category_action,
-    )
-    .await
-    {
-        Ok(categories) => {
-            println!("\nAvailable Categories:");
-            for category in &categories {
-                println!(
-                    "- {} (ID: {})",
-                    category.category_name, category.category_id
-                );
-            }
+impl eframe::App for IPTVApp {
+    fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+        configure_fonts(ctx);
 
-            println!("\nEnter a Category ID to view its streams:");
-            let mut category_id = String::new();
-            io::stdin()
-                .read_line(&mut category_id)
-                .expect("Failed to read input");
-
-            match fetch_streams(
-                &config.server,
-                &config.username,
-                &config.password,
-                category_id.trim(),
-                stream_action,
-            )
-            .await
-            {
-                Ok(streams) => {
-                    println!("\nAvailable Streams:");
-                    for stream in &streams {
-                        println!(
-                            "- {}: {} (ID: {})",
-                            stream.get_type(),
-                            stream.get_name(),
-                            stream.get_id()
-                        );
-                    }
-
-                    println!("\nEnter a Stream ID to play:");
-                    let mut stream_id = String::new();
-                    io::stdin()
-                        .read_line(&mut stream_id)
-                        .expect("Failed to read input");
-
-                    let stream_url = format!(
-                        "{}/{}/{}/{}/{}.{}",
-                        config.server,
-                        content_type,
-                        config.username,
-                        config.password,
-                        stream_id.trim(),
-                        streams
-                            .iter()
-                            .find(|s| s.get_id() == stream_id.trim())
-                            .map(|s| s.get_extension())
-                            .unwrap_or_else(|| "ts".to_string())
-                    );
-
-                    play_stream(&stream_url);
-                }
-                Err(e) => println!("Failed to fetch streams: {}", e),
-            }
-        }
-        Err(e) => println!("Failed to fetch categories: {}", e),
+        egui::CentralPanel::default().show(ctx, |ui| match &self.current_view {
+            View::Login => self.display_login(ui),
+            View::MainMenu => self.display_main_menu(ui),
+            View::Categories(category_type) => self.display_categories(ui, category_type.clone()),
+            View::Streams(category_id) => self.display_streams(ui, category_id.clone()),
+            View::Playback(stream_url) => self.display_playback(ui, stream_url.clone()),
+        });
     }
 }
 
-async fn handle_series(config: &Config) {
-    match fetch_categories(
-        &config.server,
-        &config.username,
-        &config.password,
-        "get_series_categories",
-    )
-    .await
-    {
-        Ok(categories) => {
-            println!("\nAvailable Categories:");
-            for category in &categories {
-                println!(
-                    "- {} (ID: {})",
-                    category.category_name, category.category_id
-                );
+impl IPTVApp {
+    fn display_login(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Login to IPTV");
+
+        ui.horizontal(|ui| {
+            ui.label("Server:");
+            ui.text_edit_singleline(&mut self.server);
+            ui.label("Username:");
+            ui.text_edit_singleline(&mut self.username);
+            ui.label("Password:");
+            let mut masked_password = "*".repeat(self.password.len());
+            if ui.text_edit_singleline(&mut masked_password).changed() {
+                self.password = masked_password.clone();
+            }
+        });
+
+        if ui.button("Login").clicked() {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let result = rt.block_on(login(&self.server, &self.username, &self.password));
+            if result.is_ok() {
+                self.login_status = "Login Successful!".to_string();
+                save_credentials(&Credentials {
+                    server: self.server.clone(),
+                    username: self.username.clone(),
+                    password: self.password.clone(),
+                })
+                .expect("Failed to save credentials");
+                self.current_view = View::MainMenu;
+            } else {
+                self.login_status = "Login Failed.".to_string();
             }
         }
-        Err(e) => println!("Failed to fetch series categories: {}", e),
+
+        ui.label(&self.login_status);
     }
-    println!("\nEnter a Category ID to view its streams:");
-    let mut category_id = String::new();
-    io::stdin()
-        .read_line(&mut category_id)
-        .expect("Failed to read input");
 
-    match fetch_streams(
-        &config.server,
-        &config.username,
-        &config.password,
-        category_id.trim(),
-        "get_series",
-    )
-    .await
-    {
-        Ok(streams) => {
-            println!("\nAvailable Streams:");
-            for stream in &streams {
-                println!(
-                    "- {}: {} (ID: {})",
-                    stream.get_type(),
-                    stream.get_name(),
-                    stream.get_id()
-                );
-            }
-            println!("\nEnter the Series ID to fetch details:");
-            let mut series_id = String::new();
-            io::stdin()
-                .read_line(&mut series_id)
-                .expect("Failed to read input");
+    fn display_main_menu(&mut self, ui: &mut egui::Ui) {
+        if ui.button("Live Streams").clicked() {
+            self.current_view = View::Categories("live".to_string());
+        }
 
-            match fetch_series_info(
-                &config.server,
-                &config.username,
-                &config.password,
-                series_id.trim(),
-            )
-            .await
-            {
-                Ok(series_info) => {
-                    println!("\nSeries Info:");
-                    println!("Name: {}", series_info.info.name);
-                    println!("Plot: {}", series_info.info.plot);
-                    println!("Cast: {}", series_info.info.cast);
-                    println!("Director: {:?}", series_info.info.director);
-                    println!("Genre: {}", series_info.info.genre);
+        if ui.button("VOD").clicked() {
+            self.current_view = View::Categories("vod".to_string());
+        }
+    }
 
-                    println!("\nSeasons:");
-                    for season in &series_info.seasons {
-                        println!(
-                            "- Season {} (Episodes: {})",
-                            season.season_number, season.episode_count
-                        );
-                    }
+    fn display_categories(&mut self, ui: &mut egui::Ui, category_type: String) {
+        let categories = if category_type == "live" {
+            &mut self.live_categories
+        } else {
+            &mut self.vod_categories
+        };
 
-                    println!("\nEnter a Season Number to view episodes:");
-                    let mut season_choice = String::new();
-                    io::stdin()
-                        .read_line(&mut season_choice)
-                        .expect("Failed to read input");
-                    let season_choice: u32 = season_choice.trim().parse().unwrap_or(0);
-
-                    if let Some(episodes) = series_info.episodes.get(&season_choice.to_string()) {
-                        println!("\nEpisodes:");
-                        for episode in episodes {
-                            println!(
-                                "- {}: {} (ID: {})",
-                                episode.episode_num, episode.title, episode.id
-                            );
-                        }
-
-                        println!("\nEnter an Episode ID to play:");
-                        let mut episode_id = String::new();
-                        io::stdin()
-                            .read_line(&mut episode_id)
-                            .expect("Failed to read input");
-
-                        if let Some(episode) = episodes.iter().find(|ep| ep.id == episode_id.trim())
-                        {
-                            let stream_url = format!(
-                                "{}/series/{}/{}/{}.{}",
-                                config.server,
-                                config.username,
-                                config.password,
-                                episode.id,
-                                episode.container_extension
-                            );
-
-                            play_stream(&stream_url);
-                        } else {
-                            println!("Invalid Episode ID.");
-                        }
+        if categories.is_empty() {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            *categories = rt
+                .block_on(fetch_and_store_categories(
+                    &self.server,
+                    &self.username,
+                    &self.password,
+                    if category_type == "live" {
+                        "get_live_categories"
                     } else {
-                        println!("Invalid Season Number.");
-                    }
-                }
-                Err(e) => println!("Failed to fetch series info: {}", e),
+                        "get_vod_categories"
+                    },
+                    &self.db,
+                ))
+                .unwrap_or_default();
+        }
+
+        for category in categories {
+            if ui.button(&category.category_name).clicked() {
+                self.current_view = View::Streams(category.category_id.clone());
             }
         }
-        Err(e) => println!("Failed to fetch series: {}", e),
+
+        if ui.button("Back").clicked() {
+            self.current_view = View::MainMenu;
+        }
     }
+
+    fn display_streams(&mut self, ui: &mut egui::Ui, category_id: String) {
+        if self.streams.is_empty() {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            self.streams = rt
+                .block_on(fetch_and_store_streams(
+                    &self.server,
+                    &self.username,
+                    &self.password,
+                    &category_id,
+                    if category_id.starts_with("live") {
+                        "get_live_streams"
+                    } else {
+                        "get_vod_streams"
+                    },
+                    &self.db,
+                ))
+                .unwrap_or_default();
+        }
+
+        for stream in &self.streams {
+            if ui.button(&stream.get_name()).clicked() {
+                let stream_url = format!(
+                    "{}/{}/{}/{}/{}.{}",
+                    self.server,
+                    if category_id.starts_with("live") {
+                        "live"
+                    } else {
+                        "movie"
+                    },
+                    self.username,
+                    self.password,
+                    stream.get_id(),
+                    stream.get_extension()
+                );
+                self.current_view = View::Playback(stream_url);
+            }
+        }
+
+        if ui.button("Back").clicked() {
+            self.streams.clear();
+            self.current_view = View::Categories(if category_id.starts_with("live") {
+                "live".to_string()
+            } else {
+                "vod".to_string()
+            });
+        }
+    }
+
+    fn display_playback(&mut self, ui: &mut egui::Ui, stream_url: String) {
+        ui.heading("Now Playing:");
+        ui.label(format!("Stream URL: {}", stream_url));
+
+        if self.mpv_process.is_none() {
+            self.mpv_process = Some(
+                Command::new("mpv")
+                    .arg(&stream_url)
+                    .arg("--no-terminal")
+                    .arg("--force-window=yes")
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .spawn()
+                    .expect("Failed to start MPV"),
+            );
+        }
+
+        if ui.button("Stop").clicked() {
+            if let Some(mut process) = self.mpv_process.take() {
+                let _ = process.kill();
+            }
+            self.current_view = View::MainMenu;
+        }
+    }
+}
+
+fn configure_fonts(ctx: &egui::Context) {
+    use egui::FontFamily::{Monospace, Proportional};
+
+    let mut fonts = egui::FontDefinitions::default();
+
+    fonts.font_data.insert(
+        "custom_arabic".to_owned(),
+        egui::FontData::from_static(include_bytes!("../resources/Lateef-Regular.ttf")),
+    );
+
+    fonts
+        .families
+        .entry(Proportional)
+        .or_default()
+        .insert(0, "custom_arabic".to_owned());
+
+    fonts
+        .families
+        .entry(Monospace)
+        .or_default()
+        .insert(0, "custom_arabic".to_owned());
+
+    ctx.set_fonts(fonts);
+}
+
+fn main() -> Result<(), eframe::Error> {
+    let options = eframe::NativeOptions::default();
+    eframe::run_native(
+        "IPTV Application",
+        options,
+        Box::new(|_| Box::new(IPTVApp::default())),
+    )
 }
