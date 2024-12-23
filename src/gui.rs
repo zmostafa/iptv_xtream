@@ -7,13 +7,17 @@ use crate::models::live::{Category, LiveStream};
 use crate::models::movies::Movie;
 use crate::models::series::{Series, SeriesInfo};
 use eframe::egui;
+use egui::TextBuffer;
 use futures::stream;
+use harfbuzz::sys::HB_GLYPH_FLAG_DEFINED;
+use rustybuzz::{Face, SerializeFlags, UnicodeBuffer};
 use serde_json::to_string;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
+use unicode_bidi::{BidiInfo, Direction, Level};
 
 #[derive(Clone)]
 enum AppView {
@@ -303,7 +307,8 @@ impl IPTVApp {
 
             egui::ScrollArea::vertical().show(ui, |ui| {
                 for category in categories {
-                    if ui.button(&category.category_name).clicked() {
+                    let display_name = Self::preprocess_arabic_text_v1(&category.category_name);
+                    if ui.button(&display_name).clicked() {
                         self.current_view = AppView::LiveStreams(category.category_id.clone());
                     }
                 }
@@ -327,7 +332,8 @@ impl IPTVApp {
 
             egui::ScrollArea::vertical().show(ui, |ui| {
                 for category in categories {
-                    if ui.button(&category.category_name).clicked() {
+                    let display_name = Self::preprocess_arabic_text_v1(&category.category_name);
+                    if ui.button(&display_name).clicked() {
                         self.current_view = AppView::MoviesStream(category.category_id.clone());
                     }
                 }
@@ -346,7 +352,8 @@ impl IPTVApp {
 
             egui::ScrollArea::vertical().show(ui, |ui| {
                 for category in categories {
-                    if ui.button(&category.category_name).clicked() {
+                    let display_name = Self::preprocess_arabic_text_v1(&category.category_name);
+                    if ui.button(&display_name).clicked() {
                         self.current_view = AppView::SeriesList(category.category_id.clone());
                     }
                 }
@@ -436,7 +443,8 @@ impl IPTVApp {
 
             egui::ScrollArea::vertical().show(ui, |ui| {
                 for series in series_list {
-                    if ui.button(&series.name).clicked() {
+                    let display_name = Self::preprocess_arabic_text_v1(&series.name);
+                    if ui.button(&display_name).clicked() {
                         if let Some(series_id) = series.series_id {
                             self.current_view = AppView::SeriesDetail(series_id);
                         }
@@ -474,8 +482,8 @@ impl IPTVApp {
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading(format!("Series: {}", series_detail.info.name));
-            ui.label(format!("Plot: {}", series_detail.info.plot));
+            ui.heading(format!("Series: {}", Self::preprocess_arabic_text_v1(series_detail.info.name.as_str())));
+            ui.label(format!("Plot: {}", Self::preprocess_arabic_text_v1(series_detail.info.plot.as_str())));
 
             if ui.button("Back").clicked() {
                 self.current_view = AppView::SeriesList(series_detail.info.category_id.clone());
@@ -570,6 +578,10 @@ impl IPTVApp {
                 self.search_results = self.search_movies(&self.search_query);
             }
 
+            if ui.button("Back").clicked() {
+                self.current_view = AppView::MoviesCategories;
+            }
+
             ui.separator();
 
             egui::ScrollArea::vertical().show(ui, |ui| {
@@ -592,10 +604,6 @@ impl IPTVApp {
                     });
                 }
             });
-
-            if ui.button("Back").clicked() {
-                self.current_view = AppView::MoviesCategories;
-            }
         });
     }
 
@@ -638,6 +646,60 @@ impl IPTVApp {
                 self.current_view = view;
             }
         }
+    }
+
+    fn preprocess_arabic_text_v1(input: &str) -> String {
+        // 1. Perform bidirectional text processing
+        let bidi_info = BidiInfo::new(input, None);
+        let para = &bidi_info.paragraphs[0];
+        let line = para.range.clone();
+        let reordered = bidi_info.reorder_line(para, line.clone());
+        reordered.to_string()
+    }
+
+    fn preprocess_arabic_text_v2(input: &str) -> String {
+        // 1. Split the text using '-' as a delimiter
+        let segments: Vec<&str> = input.split('-').collect();
+
+        // 2. Load the font for shaping Arabic text
+        let font_data = include_bytes!("/home/zmostafa/github/xtream/assets/Amiri-Regular.ttf");
+        let face = Face::from_slice(font_data, 0).expect("Failed to create Rustybuzz Face");
+
+        // 3. Process each segment
+        let mut processed_segments = vec![];
+        for segment in segments {
+            // Check if the segment contains Arabic characters
+            if segment.chars().any(|c| c >= '\u{0600}' && c <= '\u{06FF}') {
+                // Process Arabic text: Shape and reorder
+                let bidi_info = BidiInfo::new(segment, None);
+                let para = &bidi_info.paragraphs[0];
+                let reordered = bidi_info.reorder_line(para, para.range.clone());
+
+                let mut unicode_buffer = UnicodeBuffer::new();
+                unicode_buffer.push_str(&reordered);
+                unicode_buffer.set_direction(rustybuzz::Direction::RightToLeft);
+
+                let glyph_buffer = rustybuzz::shape(&face, &[], unicode_buffer);
+
+                // let mut shaped_text = String::new();
+                // for glyph in glyph_buffer.glyph_infos() {
+                //     if let Some(ch) = char::from_u32(glyph.cluster) {
+                //         shaped_text.push(ch);
+                //     }
+                // }
+                processed_segments.push(
+                    glyph_buffer
+                        .serialize(&face, SerializeFlags::default())
+                        .to_string(),
+                );
+            } else {
+                // Append English or non-Arabic segments as-is
+                processed_segments.push(segment.to_string());
+            }
+        }
+
+        // 4. Rejoin the segments with the separator
+        processed_segments.join(" - ")
     }
 }
 
