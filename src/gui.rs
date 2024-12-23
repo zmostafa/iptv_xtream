@@ -654,7 +654,9 @@ impl IPTVApp {
         let para = &bidi_info.paragraphs[0];
         let line = para.range.clone();
         let reordered = bidi_info.reorder_line(para, line.clone());
-        reordered.to_string()
+        use arabic_reshaper::arabic_reshape;
+        
+        arabic_reshape(reordered.as_str())
     }
 
     fn preprocess_arabic_text_v2(input: &str) -> String {
@@ -681,17 +683,18 @@ impl IPTVApp {
 
                 let glyph_buffer = rustybuzz::shape(&face, &[], unicode_buffer);
 
-                // let mut shaped_text = String::new();
-                // for glyph in glyph_buffer.glyph_infos() {
-                //     if let Some(ch) = char::from_u32(glyph.cluster) {
-                //         shaped_text.push(ch);
-                //     }
-                // }
-                processed_segments.push(
-                    glyph_buffer
-                        .serialize(&face, SerializeFlags::default())
-                        .to_string(),
-                );
+                let mut shaped_text = String::new();
+                for glyph in glyph_buffer.glyph_infos() {
+                    if let Some(ch) = char::from_u32(glyph.cluster) {
+                        shaped_text.push(ch);
+                    }
+                }
+                // processed_segments.push(
+                //     glyph_buffer
+                //         .serialize(&face, SerializeFlags::default())
+                //         .to_string(),
+                // );
+                processed_segments.push(shaped_text);
             } else {
                 // Append English or non-Arabic segments as-is
                 processed_segments.push(segment.to_string());
