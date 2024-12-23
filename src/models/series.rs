@@ -41,8 +41,8 @@ pub struct EpisodeInfo {
     // pub rating: Option<f32>,
     pub releasedate: Option<String>,
     pub duration_secs: Option<u32>,
-    pub video: Option<VideoInfo>,
-    pub audio: Option<AudioInfo>,
+    // pub video: Option<VideoInfo>,
+    // pub audio: Option<AudioInfo>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -75,9 +75,21 @@ pub struct SeriesInfo {
     pub category_id: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Season {
+    pub air_date: Option<String>,          // Nullable or missing field, use Option
+    pub episode_count: u32,               // Integer value
+    pub id: u32,                          // Integer value
+    pub name: String,                     // String
+    pub overview: String,                 // String
+    pub season_number: u32,               // Integer value
+    pub vote_average: f64,                // Floating point value
+    pub cover: Option<String>,            // Nullable or missing field, use Option
+    pub cover_big: Option<String>,        // Nullable or missing field, use Option
+}
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Series {
-    pub seasons: Vec<u32>,
+    pub seasons: Vec<Season>,
     pub info: SeriesInfo,
     pub episodes: HashMap<String, Vec<Episode>>, // Map of seasons to episodes
 }

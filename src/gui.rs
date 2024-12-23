@@ -10,6 +10,7 @@ use eframe::egui;
 use egui::TextBuffer;
 use futures::stream;
 use harfbuzz::sys::HB_GLYPH_FLAG_DEFINED;
+use isahc::prelude::*;
 use rustybuzz::{Face, SerializeFlags, UnicodeBuffer};
 use serde_json::to_string;
 use std::collections::HashMap;
@@ -17,6 +18,7 @@ use std::fs::File;
 use std::io::{self, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use unicode_bidi::{BidiInfo, Direction, Level};
 
 #[derive(Clone)]
@@ -38,6 +40,7 @@ enum AppView {
 // #[derive(Clone)]
 pub struct IPTVApp {
     client: reqwest::Client, // Shared client
+    // client: isahc::HttpClient,
     api_url: String,
     username: String,
     password: String,
@@ -59,7 +62,15 @@ impl IPTVApp {
         let password = db.get::<String>("password").unwrap_or_default();
 
         IPTVApp {
-            client: reqwest::Client::new(), // Initialize once
+            // client: reqwest::Client::new(), // Initialize once
+            client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(5))
+                .build()
+                .unwrap(),
+            // client: HttpClient::builder()
+            //     .timeout(Duration::from_secs(5))
+            //     .build()
+            //     .expect("[FATAL] Failed to create HTTP Client"),
             api_url,
             username,
             password,
@@ -103,9 +114,7 @@ impl IPTVApp {
                     "[CATIGORIES] Number of Live stream categories: {}",
                     categories.len()
                 );
-                // let mut cat_num = 0;
                 for category in categories {
-                    // cat_num = cat_num + 1;
                     if let Ok(streams) = fetch_live_streams(
                         &self.client,
                         &self.api_url,
@@ -162,8 +171,8 @@ impl IPTVApp {
             }
         }
 
-        (self.fetch_and_save_series_data().await);
-        log::info!("[INFO] Fetching is done");
+        // (self.fetch_and_save_series_data().await);
+        // log::info!("[INFO] Fetching is done");
     }
 
     pub async fn fetch_and_save_series_data(&self) {
@@ -374,7 +383,8 @@ impl IPTVApp {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 for stream in streams {
                     ui.horizontal(|ui| {
-                        ui.label(&stream.name);
+                        let display_name = Self::preprocess_arabic_text_v1(&stream.name);
+                        ui.label(&display_name);
                         if ui.button("Play").clicked() {
                             println!("Play stream: {}", stream.stream_id);
                             let stream_url = format!(
@@ -409,7 +419,8 @@ impl IPTVApp {
                 for stream in streams {
                     ui.horizontal(|ui| {
                         // Display movies as posters
-                        ui.label(&stream.name);
+                        let display_name = Self::preprocess_arabic_text_v1(&stream.name);
+                        ui.label(&display_name);
                         if ui.button("Play").clicked() {
                             println!("Play stream: {}", stream.stream_id);
                             let stream_url = format!(
@@ -432,6 +443,26 @@ impl IPTVApp {
     }
 
     fn render_series_list(&mut self, ctx: &egui::Context, category_id: &str) {
+        // match futures::executor::block_on(fetch_series(
+        //     &self.client,
+        //     &self.api_url,
+        //     &self.username,
+        //     &self.password,
+        //     Some(&category_id),
+        // )) {
+        //     Ok(list) => {
+        //         self.db.save_series_streams(&category_id, list.clone());
+        //     }
+
+        //     Err(err) => {
+        //         log::error!(
+        //             "Failed to fetch series for category {}: {}",
+        //             category_id,
+        //             err
+        //         );
+        //     }
+        // }
+
         let series_list = self.db.get_series_streams(category_id);
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -482,8 +513,14 @@ impl IPTVApp {
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading(format!("Series: {}", Self::preprocess_arabic_text_v1(series_detail.info.name.as_str())));
-            ui.label(format!("Plot: {}", Self::preprocess_arabic_text_v1(series_detail.info.plot.as_str())));
+            ui.heading(format!(
+                "Series: {}",
+                Self::preprocess_arabic_text_v1(series_detail.info.name.as_str())
+            ));
+            ui.label(format!(
+                "Plot: {}",
+                Self::preprocess_arabic_text_v1(series_detail.info.plot.as_str())
+            ));
 
             if ui.button("Back").clicked() {
                 self.current_view = AppView::SeriesList(series_detail.info.category_id.clone());
@@ -655,7 +692,7 @@ impl IPTVApp {
         let line = para.range.clone();
         let reordered = bidi_info.reorder_line(para, line.clone());
         use arabic_reshaper::arabic_reshape;
-        
+
         arabic_reshape(reordered.as_str())
     }
 

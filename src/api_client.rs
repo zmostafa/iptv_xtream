@@ -5,6 +5,7 @@ use serde::ser::StdError;
 use crate::models::live::{Category, LiveStream};
 use crate::models::movies::Movie;
 use crate::models::series::{Series, SeriesInfo};
+use tokio::time::sleep;
 
 pub async fn authenticate(client:&Client, api_url: &str, username: &str, password: &str) -> Result<bool, Box<dyn Error>> {
     let url = format!("{}/player_api.php?username={}&password={}", api_url, username, password);
@@ -14,7 +15,7 @@ pub async fn authenticate(client:&Client, api_url: &str, username: &str, passwor
     Ok(response.status().is_success())
 }
 
-pub async fn fetch_live_categories(client:&Client, api_url: &str, username: &str, password: &str) -> Result<Vec<Category>, Box<dyn Error>> {
+pub async fn fetch_live_categories_v1(client:&Client, api_url: &str, username: &str, password: &str) -> Result<Vec<Category>, Box<dyn Error>> {
     let url = format!("{}/player_api.php?username={}&password={}&action=get_live_categories", api_url, username, password);
     let response = client.get(&url).send().await?;
     let categories: Vec<Category> = response.json().await?;
@@ -22,7 +23,47 @@ pub async fn fetch_live_categories(client:&Client, api_url: &str, username: &str
     Ok(categories)
 }
 
-pub async fn fetch_vod_categories(client:&Client, api_url: &str, username: &str, password: &str) -> Result<Vec<Category>, Box<dyn Error>> {
+pub async fn fetch_live_categories(
+    client: &Client,
+    api_url: &str,
+    username: &str,
+    password: &str,
+) -> Result<Vec<Category>, Box<dyn Error>> {
+    let url = format!(
+        "{}/player_api.php?username={}&password={}&action=get_live_categories",
+        api_url, username, password
+    );
+
+    log::info!("[FETCH] Sending request to: {}", url);
+
+    let mut attempts = 0;
+    let max_attempts = 3;
+
+    while attempts < max_attempts {
+        attempts += 1;
+
+        match client.get(&url).send().await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    let categories: Vec<Category> = response.json().await?;
+                    log::info!("[FETCH SUCCESS] Categories: {:?}", categories);
+                    return Ok(categories);
+                } else {
+                    log::warn!("[FETCH FAILURE] Status: {}", response.status());
+                }
+            }
+            Err(err) => {
+                log::error!("[FETCH ERROR] Attempt {}: {}", attempts, err);
+            }
+        }
+
+        tokio::time::sleep(Duration::from_secs(2)).await; // Retry delay
+    }
+
+    Err("Failed to fetch live categories after multiple attempts".into())
+}
+
+pub async fn fetch_vod_categories_v1(client:&Client, api_url: &str, username: &str, password: &str) -> Result<Vec<Category>, Box<dyn Error>> {
     let url = format!("{}/player_api.php?username={}&password={}&action=get_vod_categories", api_url, username, password);
     let response = client.get(&url).send().await?;
     let categories: Vec<Category> = response.json().await?;
@@ -30,7 +71,64 @@ pub async fn fetch_vod_categories(client:&Client, api_url: &str, username: &str,
     Ok(categories)
 }
 
-pub async fn fetch_series_categories(
+pub async fn fetch_vod_categories(
+    client: &Client,
+    api_url: &str,
+    username: &str,
+    password: &str,
+) -> Result<Vec<Category>, Box<dyn Error>> {
+    let max_attempts = 3;
+    let mut attempt = 0;
+    let base_delay = Duration::from_secs(1);
+
+    let url = format!(
+        "{}/player_api.php?username={}&password={}&action=get_vod_categories",
+        api_url, username, password
+    );
+
+    log::info!("[FETCH] Requesting movie categories");
+
+    while attempt < max_attempts {
+        attempt += 1;
+
+        match client.get(&url).send().await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    match response.json::<Vec<Category>>().await {
+                        Ok(categories) => {
+                            log::info!(
+                                "[FETCH SUCCESS] Retrieved {} movie categories",
+                                categories.len()
+                            );
+                            return Ok(categories);
+                        }
+                        Err(err) => {
+                            log::error!(
+                                "[FETCH ERROR] Failed to parse JSON response: {}",
+                                err
+                            );
+                            return Err(Box::new(err));
+                        }
+                    }
+                } else {
+                    log::warn!("[FETCH WARNING] Non-success status: {}", response.status());
+                }
+            }
+            Err(err) => {
+                log::error!("[FETCH ERROR] Attempt {}: {}", attempt, err);
+            }
+        }
+
+        let delay = base_delay * attempt;
+        log::info!("[FETCH RETRY] Retrying in {:?} (attempt {}/{})", delay, attempt, max_attempts);
+        sleep(delay).await;
+    }
+
+    log::error!("[FETCH FAILURE] Failed to fetch movie categories after multiple attempts");
+    Err("Failed to fetch movie categories".into())
+}
+
+pub async fn fetch_series_categories_v1(
     client: &reqwest::Client,
     api_url: &str,
     username: &str,
@@ -58,7 +156,64 @@ pub async fn fetch_series_categories(
     Ok(categories)
 }
 
-pub async fn fetch_live_streams(client:&Client, api_url: &str, username: &str, password: &str, category_id: Option<&str>) -> Result<Vec<LiveStream>, Box<dyn Error>> {
+pub async fn fetch_series_categories(
+    client: &Client,
+    api_url: &str,
+    username: &str,
+    password: &str,
+) -> Result<Vec<Category>, Box<dyn Error>> {
+    let max_attempts = 3;
+    let mut attempt = 0;
+    let base_delay = Duration::from_secs(1);
+
+    let url = format!(
+        "{}/player_api.php?username={}&password={}&action=get_series_categories",
+        api_url, username, password
+    );
+
+    log::info!("[FETCH] Requesting series categories");
+
+    while attempt < max_attempts {
+        attempt += 1;
+
+        match client.get(&url).send().await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    match response.json::<Vec<Category>>().await {
+                        Ok(categories) => {
+                            log::info!(
+                                "[FETCH SUCCESS] Retrieved {} series categories",
+                                categories.len()
+                            );
+                            return Ok(categories);
+                        }
+                        Err(err) => {
+                            log::error!(
+                                "[FETCH ERROR] Failed to parse JSON response: {}",
+                                err
+                            );
+                            return Err(Box::new(err));
+                        }
+                    }
+                } else {
+                    log::warn!("[FETCH WARNING] Non-success status: {}", response.status());
+                }
+            }
+            Err(err) => {
+                log::error!("[FETCH ERROR] Attempt {}: {}", attempt, err);
+            }
+        }
+
+        let delay = base_delay * attempt;
+        log::info!("[FETCH RETRY] Retrying in {:?} (attempt {}/{})", delay, attempt, max_attempts);
+        sleep(delay).await;
+    }
+
+    log::error!("[FETCH FAILURE] Failed to fetch series categories after multiple attempts");
+    Err("Failed to fetch series categories".into())
+}
+
+pub async fn fetch_live_streams_v1(client:&Client, api_url: &str, username: &str, password: &str, category_id: Option<&str>) -> Result<Vec<LiveStream>, Box<dyn Error>> {
     let url = match category_id {
         Some(id) => format!("{}/player_api.php?username={}&password={}&action=get_live_streams&category_id={}", api_url, username, password, id),
         None => format!("{}/player_api.php?username={}&password={}&action=get_live_streams", api_url, username, password),
@@ -72,7 +227,83 @@ pub async fn fetch_live_streams(client:&Client, api_url: &str, username: &str, p
     Ok(streams)
 }
 
-pub async fn fetch_vod_streams(client:&Client, api_url: &str, username: &str, password: &str, category_id: Option<&str>) -> Result<Vec<Movie>, Box<dyn Error>> {
+pub async fn fetch_live_streams(
+    client: &Client,
+    api_url: &str,
+    username: &str,
+    password: &str,
+    category_id: Option<&str>,
+) -> Result<Vec<LiveStream>, Box<dyn Error>> {
+    let max_attempts = 3; // Number of retry attempts
+    let mut attempt = 0;
+    let base_delay = Duration::from_secs(1); // Base delay between retries
+
+    let url = format!(
+        "{}/player_api.php?username={}&password={}&action=get_live_streams",
+        api_url,
+        username,
+        password,
+        // category_id.unwrap_or("")
+    );
+
+    log::info!("[FETCH] Requesting live streams for category_id: {:?}", category_id);
+
+    while attempt < max_attempts {
+        attempt += 1;
+
+        match client.get(&url).send().await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    match response.json::<Vec<LiveStream>>().await {
+                        Ok(streams) => {
+                            log::info!(
+                                "[FETCH SUCCESS] Retrieved {} streams for category_id: {:?}",
+                                streams.len(),
+                                category_id
+                            );
+                            return Ok(streams);
+                        }
+                        Err(err) => {
+                            log::error!(
+                                "[FETCH ERROR] Failed to parse JSON response for category_id {:?}: {}",
+                                category_id,
+                                err
+                            );
+                            return Err(Box::new(err));
+                        }
+                    }
+                } else {
+                    log::warn!(
+                        "[FETCH WARNING] Received non-success status {} for category_id {:?}",
+                        response.status(),
+                        category_id
+                    );
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "[FETCH ERROR] Attempt {}: Failed to fetch streams for category_id {:?}: {}",
+                    attempt,
+                    category_id,
+                    err
+                );
+            }
+        }
+
+        // Apply exponential backoff
+        let delay = base_delay * attempt;
+        log::info!("[FETCH RETRY] Retrying in {:?} (attempt {}/{})", delay, attempt, max_attempts);
+        sleep(delay).await;
+    }
+
+    log::error!(
+        "[FETCH FAILURE] All attempts failed to fetch streams for category_id {:?}",
+        category_id
+    );
+    Err("Failed to fetch live streams after multiple attempts".into())
+}
+
+pub async fn fetch_vod_streams_v1(client:&Client, api_url: &str, username: &str, password: &str, category_id: Option<&str>) -> Result<Vec<Movie>, Box<dyn Error>> {
     let url = match category_id {
         Some(id) => format!("{}/player_api.php?username={}&password={}&action=get_vod_streams&category_id={}", api_url, username, password, id),
         None => format!("{}/player_api.php?username={}&password={}&action=get_vod_streams", api_url, username, password),
@@ -84,7 +315,69 @@ pub async fn fetch_vod_streams(client:&Client, api_url: &str, username: &str, pa
     Ok(streams)
 }
 
-pub async fn fetch_series(client:&Client, api_url: &str, username: &str, password: &str, category_id: Option<&str>) -> Result<Vec<SeriesInfo>, Box<dyn StdError + Send + Sync>> {
+pub async fn fetch_vod_streams(
+    client: &Client,
+    api_url: &str,
+    username: &str,
+    password: &str,
+    category_id: Option<&str>,
+) -> Result<Vec<Movie>, Box<dyn Error>> {
+    let max_attempts = 3;
+    let mut attempt = 0;
+    let base_delay = Duration::from_secs(1);
+
+    let url = format!(
+        "{}/player_api.php?username={}&password={}&action=get_vod_streams",
+        api_url,
+        username,
+        password,
+        // category_id.unwrap_or("")
+    );
+
+    log::info!("[FETCH] Requesting movie streams for category_id: {:?}", category_id);
+
+    while attempt < max_attempts {
+        attempt += 1;
+
+        match client.get(&url).send().await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    match response.json::<Vec<Movie>>().await {
+                        Ok(streams) => {
+                            log::info!(
+                                "[FETCH SUCCESS] Retrieved {} movie streams for category_id: {:?}",
+                                streams.len(),
+                                category_id
+                            );
+                            return Ok(streams);
+                        }
+                        Err(err) => {
+                            log::error!(
+                                "[FETCH ERROR] Failed to parse JSON response: {}",
+                                err
+                            );
+                            return Err(Box::new(err));
+                        }
+                    }
+                } else {
+                    log::warn!("[FETCH WARNING] Non-success status: {}", response.status());
+                }
+            }
+            Err(err) => {
+                log::error!("[FETCH ERROR] Attempt {}: {}", attempt, err);
+            }
+        }
+
+        let delay = base_delay * attempt;
+        log::info!("[FETCH RETRY] Retrying in {:?} (attempt {}/{})", delay, attempt, max_attempts);
+        sleep(delay).await;
+    }
+
+    log::error!("[FETCH FAILURE] Failed to fetch movie streams for category_id {:?}", category_id);
+    Err("Failed to fetch movie streams".into())
+}
+
+pub async fn fetch_series_v1(client:&Client, api_url: &str, username: &str, password: &str, category_id: Option<&str>) -> Result<Vec<SeriesInfo>, Box<dyn StdError + Send + Sync>> {
     let url = match category_id {
         Some(id) => format!("{}/player_api.php?username={}&password={}&action=get_series&category_id={}", api_url, username, password, id),
         None => format!("{}/player_api.php?username={}&password={}&action=get_series", api_url, username, password),
@@ -120,7 +413,79 @@ pub async fn fetch_series(client:&Client, api_url: &str, username: &str, passwor
     // Ok(series)
 }
 
-pub async fn fetch_serie_info(
+pub async fn fetch_series(
+    client: &Client,
+    api_url: &str,
+    username: &str,
+    password: &str,
+    category_id: Option<&str>,
+) -> Result<Vec<SeriesInfo>, Box<dyn Error + Send + Sync>> {
+    let max_attempts = 3;
+    let mut attempt = 0;
+    let base_delay = Duration::from_secs(2);
+
+    let url = match category_id {
+        Some(id) => format!(
+            "{}/player_api.php?username={}&password={}&action=get_series&category_id={}",
+            api_url, username, password, id
+        ),
+        None => format!(
+            "{}/player_api.php?username={}&password={}&action=get_series",
+            api_url, username, password
+        ),
+    };
+
+    log::info!("[FETCH] Requesting series for category_id: {:?}", category_id);
+
+    while attempt < max_attempts {
+        attempt += 1;
+
+        match client.get(&url).send().await {
+            Ok(response) => {
+                let status = response.status();
+                log::debug!("[FETCH SERIES] Response Status: {}", status);
+
+                if status.is_success() {
+                    let body = response.text().await?;
+                    log::debug!("[FETCH SERIES] Response Body: {}", body);
+
+                    match serde_json::from_str::<Vec<SeriesInfo>>(&body) {
+                        Ok(series) => {
+                            log::info!(
+                                "[FETCH SUCCESS] Retrieved {} series for category_id: {:?}",
+                                series.len(),
+                                category_id
+                            );
+                            return Ok(series);
+                        }
+                        Err(err) => {
+                            log::error!("[FETCH ERROR] Failed to parse JSON response: {}", err);
+                            return Err(Box::new(err));
+                        }
+                    }
+                } else {
+                    log::warn!("[FETCH WARNING] Non-success status: {}", status);
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "[FETCH ERROR] Attempt {}: Failed to fetch series: {}",
+                    attempt,
+                    err
+                );
+            }
+        }
+
+        let delay = base_delay * attempt;
+        log::info!("[FETCH RETRY] Retrying in {:?} (attempt {}/{})", delay, attempt, max_attempts);
+        sleep(delay).await;
+    }
+
+    log::error!("[FETCH FAILURE] Failed to fetch series after multiple attempts");
+    Err("Failed to fetch series".into())
+}
+
+pub async fn fetch_serie_info_v1(
     client: &reqwest::Client,
     api_url: &str,
     username: &str,
@@ -149,5 +514,86 @@ pub async fn fetch_serie_info(
     Ok(series_info)
 }
 
+pub async fn fetch_serie_info(
+    client: &Client,
+    api_url: &str,
+    username: &str,
+    password: &str,
+    series_id: &i64,
+) -> Result<Series, Box<dyn Error + Send + Sync>> {
+    let max_attempts = 3;
+    let mut attempt = 0;
+    let base_delay = Duration::from_secs(1);
+
+    let url = format!(
+        "{}/player_api.php?username={}&password={}&action=get_series_info&series_id={}",
+        api_url, username, password, series_id
+    );
+
+    log::info!("[FETCH] Requesting series info for series_id: {}", series_id);
+
+    while attempt < max_attempts {
+        attempt += 1;
+
+        match client.get(&url).send().await {
+            Ok(response) => {
+                let status = response.status();
+                log::debug!("[FETCH SERIES INFO] Response Status: {}", status);
+
+                if status.is_success() {
+                    let body = response.text().await?;
+                    log::debug!("[FETCH SERIES INFO] Response Body: {}", body);
+
+                    match serde_json::from_str::<Series>(&body) {
+                        Ok(series_info) => {
+                            log::info!(
+                                "[FETCH SUCCESS] Retrieved series info for series_id: {}",
+                                series_id
+                            );
+                            return Ok(series_info);
+                        }
+                        Err(err) => {
+                            log::error!(
+                                "[FETCH ERROR] Failed to parse JSON response for series_id {}: {}",
+                                series_id,
+                                err
+                            );
+                            return Err(Box::new(err));
+                        }
+                    }
+                } else {
+                    log::warn!(
+                        "[FETCH WARNING] Non-success status for series_id {}: {}",
+                        series_id,
+                        status
+                    );
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "[FETCH ERROR] Attempt {}: Failed to fetch series info for series_id {}: {}",
+                    attempt,
+                    series_id,
+                    err
+                );
+            }
+        }
+
+        let delay = base_delay * attempt;
+        log::info!(
+            "[FETCH RETRY] Retrying in {:?} (attempt {}/{})",
+            delay,
+            attempt,
+            max_attempts
+        );
+        sleep(delay).await;
+    }
+
+    log::error!(
+        "[FETCH FAILURE] Failed to fetch series info for series_id {} after multiple attempts",
+        series_id
+    );
+    Err("Failed to fetch series info".into())
+}
 
 // I can download using wget.
