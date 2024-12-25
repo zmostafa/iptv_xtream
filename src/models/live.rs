@@ -13,7 +13,7 @@ pub struct LiveStream {
     pub name: String,
     pub stream_type: String,
     pub stream_id: u32,
-    pub stream_icon: Option<String>,
+    pub stream_icon: String,
     pub epg_channel_id: Option<String>,
     pub added: Option<String>,
     pub is_adult: Option<String>,

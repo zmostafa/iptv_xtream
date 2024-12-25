@@ -1,13 +1,15 @@
 use crate::api_client::{
-    authenticate, fetch_live_categories, fetch_live_streams, fetch_serie_info, fetch_series,
-    fetch_series_categories, fetch_vod_categories, fetch_vod_streams,fetch_all_live_streams, fetch_all_movies
+    authenticate, fetch_all_live_streams, fetch_all_movies, fetch_live_categories,
+    fetch_live_streams, fetch_serie_info, fetch_series, fetch_series_categories,
+    fetch_vod_categories, fetch_vod_streams,
 };
 use crate::database::Database;
 use crate::models::live::{Category, LiveStream};
 use crate::models::movies::Movie;
 use crate::models::series::{Series, SeriesInfo};
 use eframe::egui;
-use egui::TextBuffer;
+use egui::{vec2, TextBuffer};
+use egui_extras;
 use futures::stream;
 use harfbuzz::sys::HB_GLYPH_FLAG_DEFINED;
 use isahc::prelude::*;
@@ -417,27 +419,63 @@ impl IPTVApp {
                 self.current_view = AppView::LiveCategories;
             }
 
+            ui.separator();
+
+            // Calculate grid properties based on screen width
+            let available_width = ui.available_width();
+            let min_item_width = 150.0; // Minimum width for each grid item
+            let num_columns = (available_width / min_item_width).floor() as usize; // Fit as many columns as possible
+            let item_size = available_width / num_columns as f32; // Dynamically size each item
+
+            // Add a scrollable grid to display the movies
             egui::ScrollArea::vertical().show(ui, |ui| {
-                for stream in streams {
-                    ui.horizontal(|ui| {
-                        let display_name = Self::preprocess_arabic_text_v1(&stream.name);
-                        ui.label(&display_name);
-                        if ui.button("Play").clicked() {
-                            println!("Play stream: {}", stream.stream_id);
-                            let stream_url = format!(
-                                "{}/{}/{}/{}/{}.{}",
-                                self.api_url,
-                                "live",
-                                self.username,
-                                self.password,
-                                stream.stream_id,
-                                "ts".to_string()
-                            );
-                            self.view_stack.push(self.current_view.clone());
-                            self.current_view = AppView::Playback(stream_url);
+                egui::Grid::new("live_grid")
+                    .spacing([20.0, 20.0]) // Spacing between items
+                    .min_col_width(item_size) // Minimum column width
+                    .show(ui, |ui| {
+                        for (i, stream) in streams.iter().enumerate() {
+                            // Display the live icon and name
+                            ui.vertical(|ui| {
+                                if !stream.stream_icon.is_empty() {
+                                    // Attempt to display the image
+                                    ui.add(
+                                        egui::Image::from_uri(&stream.stream_icon)
+                                            .rounding(10.0)
+                                            .fit_to_exact_size(vec2(150.0, 150.0)),
+                                    );
+                                } else {
+                                    // Placeholder for missing image
+                                    ui.label("[No Image]");
+                                }
+
+                                // Display the live name
+                                let display_name = Self::preprocess_arabic_text_v1(&stream.name);
+                                ui.label(&display_name);
+
+                                // Add a play button
+                                if ui.button("Play").clicked() {
+                                    println!("Play stream: {}", stream.stream_id);
+                                    let stream_url = format!(
+                                        "{}/{}/{}/{}/{}.{}",
+                                        self.api_url,
+                                        "live",
+                                        self.username,
+                                        self.password,
+                                        stream.stream_id,
+                                        "ts".to_string()
+                                    );
+
+                                    self.view_stack.push(self.current_view.clone());
+                                    self.current_view = AppView::LiveStreams(stream_url);
+                                }
+                            });
+
+                            // Add a new row every 4 items (adjust as needed)
+                            if (i + 1) % num_columns == 0 {
+                                ui.end_row();
+                            }
                         }
                     });
-                }
             });
         });
     }
@@ -452,54 +490,68 @@ impl IPTVApp {
                 self.current_view = AppView::MoviesCategories;
             }
 
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                for stream in streams {
-                    ui.horizontal(|ui| {
-                        // Display movies as posters
-                        let display_name = Self::preprocess_arabic_text_v1(&stream.name);
-                        ui.label(&display_name);
-                        if ui.button("Play").clicked() {
-                            println!("Play stream: {}", stream.stream_id);
-                            let stream_url = format!(
-                                "{}/{}/{}/{}/{}.{}",
-                                self.api_url,
-                                "movie",
-                                self.username,
-                                self.password,
-                                stream.stream_id,
-                                stream.container_extension
-                            );
+            ui.separator();
 
-                            self.view_stack.push(self.current_view.clone());
-                            self.current_view = AppView::Playback(stream_url);
+            // Calculate grid properties based on screen width
+            let available_width = ui.available_width();
+            let min_item_width = 150.0; // Minimum width for each grid item
+            let num_columns = (available_width / min_item_width).floor() as usize; // Fit as many columns as possible
+            let item_size = available_width / num_columns as f32; // Dynamically size each item
+
+            // Add a scrollable grid to display the movies
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                egui::Grid::new("movies_grid")
+                    .spacing([20.0, 20.0]) // Spacing between items
+                    .min_col_width(item_size) // Minimum column width
+                    .show(ui, |ui| {
+                        for (i, stream) in streams.iter().enumerate() {
+                            // Display the movie poster and name
+                            ui.vertical(|ui| {
+                                if !stream.stream_icon.is_empty() {
+                                    // Attempt to display the image
+                                    ui.add(
+                                        egui::Image::from_uri(&stream.stream_icon)
+                                            .rounding(10.0)
+                                            .fit_to_exact_size(vec2(150.0, 150.0)),
+                                    );
+                                } else {
+                                    // Placeholder for missing image
+                                    ui.label("[No Image]");
+                                }
+
+                                // Display the movie name
+                                let display_name = Self::preprocess_arabic_text_v1(&stream.name);
+                                ui.label(&display_name);
+
+                                // Add a play button
+                                if ui.button("Play").clicked() {
+                                    println!("Play stream: {}", stream.stream_id);
+                                    let stream_url = format!(
+                                        "{}/{}/{}/{}/{}.{}",
+                                        self.api_url,
+                                        "movie",
+                                        self.username,
+                                        self.password,
+                                        stream.stream_id,
+                                        stream.container_extension
+                                    );
+
+                                    self.view_stack.push(self.current_view.clone());
+                                    self.current_view = AppView::Playback(stream_url);
+                                }
+                            });
+
+                            // Add a new row every 4 items (adjust as needed)
+                            if (i + 1) % num_columns == 0 {
+                                ui.end_row();
+                            }
                         }
                     });
-                }
             });
         });
     }
 
     fn render_series_list(&mut self, ctx: &egui::Context, category_id: &str) {
-        // match futures::executor::block_on(fetch_series(
-        //     &self.client,
-        //     &self.api_url,
-        //     &self.username,
-        //     &self.password,
-        //     Some(&category_id),
-        // )) {
-        //     Ok(list) => {
-        //         self.db.save_series_streams(&category_id, list.clone());
-        //     }
-
-        //     Err(err) => {
-        //         log::error!(
-        //             "Failed to fetch series for category {}: {}",
-        //             category_id,
-        //             err
-        //         );
-        //     }
-        // }
-
         let series_list = self.db.get_series_streams(category_id);
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -509,15 +561,51 @@ impl IPTVApp {
                 self.current_view = AppView::SeriesCategories;
             }
 
+            ui.separator();
+
+            // Calculate grid properties based on screen width
+            let available_width = ui.available_width();
+            let min_item_width = 150.0; // Minimum width for each grid item
+            let num_columns = (available_width / min_item_width).floor() as usize; // Fit as many columns as possible
+            let item_size = available_width / num_columns as f32; // Dynamically size each item
+
+            // Add a scrollable grid to display the series
             egui::ScrollArea::vertical().show(ui, |ui| {
-                for series in series_list {
-                    let display_name = Self::preprocess_arabic_text_v1(&series.name);
-                    if ui.button(&display_name).clicked() {
-                        if let Some(series_id) = series.series_id {
-                            self.current_view = AppView::SeriesDetail(series_id);
+                egui::Grid::new("seriess_grid")
+                    .spacing([20.0, 20.0]) // Spacing between items
+                    .min_col_width(item_size) // Minimum column width
+                    .show(ui, |ui| {
+                        for (i, serie) in series_list.iter().enumerate() {
+                            // Display the serie poster and name
+                            ui.vertical(|ui| {
+                                if !serie.cover.is_empty() {
+                                    // Attempt to display the image
+                                    ui.add(
+                                        egui::Image::from_uri(&serie.cover)
+                                            .rounding(10.0)
+                                            .fit_to_exact_size(vec2(150.0, 150.0)),
+                                    );
+                                } else {
+                                    // Placeholder for missing image
+                                    ui.label("[No Image]");
+                                }
+
+                                // Display the serie name
+                                let display_name = Self::preprocess_arabic_text_v1(&serie.name);
+                                ui.label(&display_name);
+                                if ui.button(&display_name).clicked() {
+                                    if let Some(serie_id) = serie.series_id {
+                                        self.current_view = AppView::SeriesDetail(serie_id);
+                                    }
+                                }
+                            });
+
+                            // Add a new row every 4 items (adjust as needed)
+                            if (i + 1) % num_columns == 0 {
+                                ui.end_row();
+                            }
                         }
-                    }
-                }
+                    });
             });
         });
     }
@@ -816,7 +904,8 @@ fn configure_fonts(ctx: &egui::Context) {
         "custom_arabic".to_owned(),
         egui::FontData::from_static(include_bytes!(
             "/home/zmostafa/github/xtream/assets/Amiri-Regular.ttf"
-        )),
+        ))
+        .into(),
     );
 
     fonts
