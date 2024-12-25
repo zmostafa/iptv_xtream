@@ -1,6 +1,6 @@
 use crate::api_client::{
     authenticate, fetch_live_categories, fetch_live_streams, fetch_serie_info, fetch_series,
-    fetch_series_categories, fetch_vod_categories, fetch_vod_streams,
+    fetch_series_categories, fetch_vod_categories, fetch_vod_streams,fetch_all_live_streams, fetch_all_movies
 };
 use crate::database::Database;
 use crate::models::live::{Category, LiveStream};
@@ -104,75 +104,112 @@ impl IPTVApp {
     }
 
     pub async fn fetch_and_save_all_live_streams(&mut self) {
-        match fetch_live_categories(&self.client, &self.api_url, &self.username, &self.password)
-            .await
-        {
-            Ok(categories) => {
-                self.db.save_live_categories(categories.clone());
-                log::info!("Live categories fetched and saved.");
-                log::info!(
-                    "[CATIGORIES] Number of Live stream categories: {}",
-                    categories.len()
-                );
-                for category in categories {
-                    if let Ok(streams) = fetch_live_streams(
-                        &self.client,
-                        &self.api_url,
-                        &self.username,
-                        &self.password,
-                        Some(&category.category_id),
-                    )
-                    .await
-                    {
-                        self.db.save_live_streams(&category.category_id, streams);
-                        log::info!("Saved streams for category: {}", category.category_name);
-                    } else {
-                        log::error!(
-                            "Failed to fetch Live streams for category: {}",
-                            category.category_name
-                        );
-                    }
-                }
-            }
-            Err(err) => {
-                log::error!("Failed to fetch live categories: {}", err);
-            }
-        }
+        // match fetch_live_categories(&self.client, &self.api_url, &self.username, &self.password)
+        //     .await
+        // {
+        //     Ok(categories) => {
+        //         self.db.save_live_categories(categories.clone());
+        //         log::info!("Live categories fetched and saved.");
+        //         log::info!(
+        //             "[CATIGORIES] Number of Live stream categories: {}",
+        //             categories.len()
+        //         );
+        //         // for category in categories {
+        //             if let Ok(streams) = fetch_live_streams(
+        //                 &self.client,
+        //                 &self.api_url,
+        //                 &self.username,
+        //                 &self.password,
+        //                 Some(""),
+        //             )
+        //             .await
+        //             {
+        //                 for stream in streams {
+        //                     if let Some(category_id) = &stream.category_id {
+        //                         self.db.save_live_stream(category_id, &stream);
+        //                     } else {
+        //                         log::warn!("Stream {} has no category ID.", stream.name);
+        //                     }
+        //                 }
+        //                 // self.db.save_live_streams(&category.category_id, streams);
+        //                 // log::info!("Saved streams for category: {}", category.category_name);
+        //             } else {
+        //                 log::error!(
+        //                     "Failed to fetch Live streams for category"
+        //                 );
+        //             }
+        //         // }
+        //     }
+        //     Err(err) => {
+        //         log::error!("Failed to fetch live categories: {}", err);
+        //     }
+        // }
 
-        match fetch_vod_categories(&self.client, &self.api_url, &self.username, &self.password)
-            .await
-        {
-            Ok(categories) => {
-                self.db.save_movies_categories(categories.clone());
-                log::info!("Movies categories fetched and saved.");
+        // match fetch_vod_categories(&self.client, &self.api_url, &self.username, &self.password)
+        //     .await
+        // {
+        //     Ok(categories) => {
+        //         self.db.save_movies_categories(categories.clone());
+        //         log::info!("Movies categories fetched and saved.");
 
-                for category in categories {
-                    if let Ok(streams) = fetch_vod_streams(
-                        &self.client,
-                        &self.api_url,
-                        &self.username,
-                        &self.password,
-                        Some(&category.category_id),
-                    )
-                    .await
-                    {
-                        self.db.save_movies_streams(&category.category_id, streams);
-                        log::info!("Saved Movies for category: {}", category.category_name);
-                    } else {
-                        log::error!(
-                            "Failed to fetch Movies for category: {}",
-                            category.category_name
-                        );
-                    }
-                }
-            }
-            Err(err) => {
-                log::error!("Failed to fetch Movies categories: {}", err);
-            }
-        }
+        //         for category in categories {
+        //             if let Ok(streams) = fetch_vod_streams(
+        //                 &self.client,
+        //                 &self.api_url,
+        //                 &self.username,
+        //                 &self.password,
+        //                 Some(&category.category_id),
+        //             )
+        //             .await
+        //             {
+        //                 self.db.save_movies_streams(&category.category_id, streams);
+        //                 log::info!("Saved Movies for category: {}", category.category_name);
+        //             } else {
+        //                 log::error!(
+        //                     "Failed to fetch Movies for category: {}",
+        //                     category.category_name
+        //                 );
+        //             }
+        //         }
+        //     }
+        //     Err(err) => {
+        //         log::error!("Failed to fetch Movies categories: {}", err);
+        //     }
+        // }
 
         // (self.fetch_and_save_series_data().await);
         // log::info!("[INFO] Fetching is done");
+        // Fetch all live streams
+        match fetch_all_live_streams(&self.client, &self.api_url, &self.username, &self.password)
+            .await
+        {
+            Ok(live_streams) => {
+                log::info!("Fetched {} live streams.", live_streams.len());
+                for stream in live_streams {
+                    if let Some(category_id) = &stream.category_id {
+                        self.db.save_individual_live_stream(category_id, &stream);
+                    } else {
+                        log::warn!("Stream {} has no category ID.", stream.name);
+                    }
+                }
+            }
+            Err(err) => {
+                log::error!("Failed to fetch all live streams: {}", err);
+            }
+        }
+
+        // Fetch all movies
+        match fetch_all_movies(&self.client, &self.api_url, &self.username, &self.password).await {
+            Ok(movies) => {
+                log::info!("Fetched {} movies.", movies.len());
+                for movie in movies {
+                    self.db.save_individual_movie(&movie.category_id, &movie);
+                }
+            }
+            Err(err) => {
+                log::error!("Failed to fetch all movies: {}", err);
+            }
+        }
     }
 
     pub async fn fetch_and_save_series_data(&self) {

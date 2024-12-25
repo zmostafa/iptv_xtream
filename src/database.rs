@@ -1,9 +1,9 @@
-use sled::Db;
-use serde::{Serialize, Deserialize};
-use serde_json;
 use crate::models::live::{Category, LiveStream};
-use crate::models::series::{Series, SeriesInfo};
 use crate::models::movies::Movie;
+use crate::models::series::{Series, SeriesInfo};
+use serde::{Deserialize, Serialize};
+use serde_json;
+use sled::Db;
 
 #[derive(Clone)]
 pub struct Database {
@@ -23,7 +23,11 @@ impl Database {
     }
 
     pub fn get<T: for<'de> Deserialize<'de>>(&self, key: &str) -> Option<T> {
-        self.db.get(key).ok().flatten().and_then(|v| serde_json::from_slice(&v).ok())
+        self.db
+            .get(key)
+            .ok()
+            .flatten()
+            .and_then(|v| serde_json::from_slice(&v).ok())
     }
 
     // pub fn save_live_categories(&self, categories: Vec<Category>) {
@@ -61,7 +65,9 @@ impl Database {
         log::info!("[DB] Save Live Categories\n.");
         let key = "live_categories";
         let serialized = bincode::serialize(&categories).expect("Failed to serialize categories");
-        self.db.insert(key, serialized).expect("Failed to save categories");
+        self.db
+            .insert(key, serialized)
+            .expect("Failed to save categories");
     }
 
     pub fn get_live_categories(&self) -> Vec<Category> {
@@ -77,25 +83,40 @@ impl Database {
     pub fn save_live_streams(&self, category_id: &str, streams: Vec<LiveStream>) {
         let key = format!("live_streams_{}", category_id);
         let serialized = bincode::serialize(&streams).expect("Failed to serialize streams");
-        self.db.insert(key, serialized).expect("Failed to save streams");
+        self.db
+            .insert(key, serialized)
+            .expect("Failed to save streams");
         log::info!("[DB] Save Live Streams.");
     }
 
-    pub fn get_live_streams(&self, category_id: &str) -> Vec<LiveStream> {
-        log::info!("[DB] Get Live Streams.");
-        let key = format!("live_streams_{}", category_id);
-        if let Ok(Some(data)) = self.db.get(key) {
-            bincode::deserialize(&data).expect("Failed to deserialize streams")
-        } else {
-            vec![]
-        }
-    }
+    // pub fn get_live_streams(&self, category_id: &str) -> Vec<LiveStream> {
+    //     log::info!("[DB] Get Live Streams.");
+    //     let key = format!("live_streams_{}", category_id);
+
+    //     if let Ok(Some(data)) = self.db.get(key) {
+    //         match bincode::deserialize(&data) {
+    //             Ok(streams) => streams,
+    //             Err(err) => {
+    //                 log::error!(
+    //                     "Failed to deserialize streams for category {}: {}",
+    //                     category_id,
+    //                     err
+    //                 );
+    //                 vec![] // Return an empty vector if deserialization fails
+    //             }
+    //         }
+    //     } else {
+    //         vec![] // Return an empty vector if no data is found
+    //     }
+    // }
 
     pub fn save_movies_categories(&self, categories: Vec<Category>) {
         log::info!("[DB] Save Movies Categories.");
         let key = "movies_categories";
         let serialized = bincode::serialize(&categories).expect("Failed to serialize categories");
-        self.db.insert(key, serialized).expect("Failed to save categories");
+        self.db
+            .insert(key, serialized)
+            .expect("Failed to save categories");
     }
 
     pub fn get_movies_categories(&self) -> Vec<Category> {
@@ -111,25 +132,29 @@ impl Database {
     pub fn save_movies_streams(&self, category_id: &str, streams: Vec<Movie>) {
         let key = format!("movies_streams_{}", category_id);
         let serialized = bincode::serialize(&streams).expect("Failed to serialize streams");
-        self.db.insert(key, serialized).expect("Failed to save streams");
+        self.db
+            .insert(key, serialized)
+            .expect("Failed to save streams");
         log::info!("[DB] Save Movies Streams.");
     }
 
-    pub fn get_movies_streams(&self, category_id: &str) -> Vec<Movie> {
-        log::info!("[DB] Get Movies Streams.");
-        let key = format!("movies_streams_{}", category_id);
-        if let Ok(Some(data)) = self.db.get(key) {
-            bincode::deserialize(&data).expect("Failed to deserialize streams")
-        } else {
-            vec![]
-        }
-    }
+    // pub fn get_movies_streams(&self, category_id: &str) -> Vec<Movie> {
+    //     log::info!("[DB] Get Movies Streams.");
+    //     let key = format!("movies_streams_{}", category_id);
+    //     if let Ok(Some(data)) = self.db.get(key) {
+    //         bincode::deserialize(&data).expect("Failed to deserialize streams")
+    //     } else {
+    //         vec![]
+    //     }
+    // }
 
     pub fn save_series_categories(&self, categories: Vec<Category>) {
         log::info!("[DB] Save Series Categories.");
         let key = "series_categories";
         let serialized = bincode::serialize(&categories).expect("Failed to serialize categories");
-        self.db.insert(key, serialized).expect("Failed to save categories");
+        self.db
+            .insert(key, serialized)
+            .expect("Failed to save categories");
     }
 
     pub fn get_series_categories(&self) -> Vec<Category> {
@@ -145,7 +170,9 @@ impl Database {
     pub fn save_series_streams(&self, category_id: &str, streams: Vec<SeriesInfo>) {
         let key = format!("series_streams_{}", category_id);
         let serialized = bincode::serialize(&streams).expect("Failed to serialize streams");
-        self.db.insert(key, serialized).expect("Failed to save streams");
+        self.db
+            .insert(key, serialized)
+            .expect("Failed to save streams");
         log::info!("[DB] Save Series Streams.");
     }
 
@@ -162,10 +189,12 @@ impl Database {
     pub fn save_series_info(&self, serie_id: &i64, series: &Series) {
         let key = format!("serie_info_{}", serie_id);
         let serialized = bincode::serialize(series).expect("Failed to serialize series info");
-        self.db.insert(key, serialized).expect("Failed to save series info");
+        self.db
+            .insert(key, serialized)
+            .expect("Failed to save series info");
         log::info!("[DB] Save Series Info.");
     }
-    
+
     pub fn get_series_info(&self, serie_id: &i64) -> Option<Series> {
         log::info!("[DB] Get Series Info.");
         let key = format!("serie_info_{}", serie_id);
@@ -176,9 +205,67 @@ impl Database {
                 None
             }
             Err(err) => {
-                log::error!("Failed to retrieve series info for ID {}: {}", serie_id, err);
+                log::error!(
+                    "Failed to retrieve series info for ID {}: {}",
+                    serie_id,
+                    err
+                );
                 None
             }
         }
+    }
+
+    pub fn save_individual_live_stream(&self, category_id: &str, stream: &LiveStream) {
+        let key = format!("live_stream_{}_{}", category_id, stream.stream_id);
+        let serialized = bincode::serialize(&stream).expect("Failed to serialize live stream");
+        self.db
+            .insert(key, serialized)
+            .expect("Failed to save live stream");
+        log::info!(
+            "Saved live stream {} under category {}",
+            stream.name,
+            category_id
+        );
+    }
+
+    pub fn get_live_streams(&self, category_id: &str) -> Vec<LiveStream> {
+        log::info!("[DB] Get Live Streams for category {}", category_id);
+        let prefix = format!("live_stream_{}_", category_id);
+
+        self.db
+            .scan_prefix(prefix)
+            .filter_map(|item| {
+                if let Ok((_, value)) = item {
+                    bincode::deserialize::<LiveStream>(&value).ok()
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn save_individual_movie(&self, category_id: &str, movie: &Movie) {
+        let key = format!("movie_{}_{}", category_id, movie.stream_id);
+        let serialized = bincode::serialize(movie).expect("Failed to serialize movie");
+        self.db
+            .insert(key, serialized)
+            .expect("Failed to save movie");
+        log::info!("Saved movie {} under category {}", movie.name, category_id);
+    }
+
+    pub fn get_movies_streams(&self, category_id: &str) -> Vec<Movie> {
+        log::info!("[DB] Get Movies Streams for category {}", category_id);
+        let prefix = format!("movie_{}_", category_id);
+
+        self.db
+            .scan_prefix(prefix)
+            .filter_map(|item| {
+                if let Ok((_, value)) = item {
+                    bincode::deserialize::<Movie>(&value).ok()
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }

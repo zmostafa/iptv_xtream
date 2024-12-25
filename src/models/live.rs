@@ -7,7 +7,7 @@ pub struct Category {
     pub parent_id: u32,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LiveStream {
     pub num: u32,
     pub name: String,
