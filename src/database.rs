@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use sled::Db;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Database {
     db: Db,
 }
@@ -262,6 +262,47 @@ impl Database {
             .filter_map(|item| {
                 if let Ok((_, value)) = item {
                     bincode::deserialize::<Movie>(&value).ok()
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn save_individual_serieInfo(&self, category_id: &str, serie: &SeriesInfo) {
+        let key = format!("serie_{}_{:?}", category_id, serie.series_id);
+        let serialized = bincode::serialize(serie).expect("Failed to serialize movie");
+        self.db
+            .insert(key, serialized)
+            .expect("Failed to save movie");
+        log::info!("Saved movie {} under category {}", serie.name, category_id);
+    }
+
+    pub fn get_individual_seriesInfo(&self, category_id: &str) -> Vec<SeriesInfo> {
+        log::info!("[DB] Get Series Streams for category {}", category_id);
+        let prefix = format!("serie_{}_", category_id);
+
+        self.db
+            .scan_prefix(prefix)
+            .filter_map(|item| {
+                if let Ok((_, value)) = item {
+                    bincode::deserialize::<SeriesInfo>(&value).ok()
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn get_all_seriesInfo(&self) -> Vec<SeriesInfo> {
+        log::info!("[DB] Get All Series Streams");
+        let prefix = format!("serie_");
+
+        self.db
+            .scan_prefix(prefix)
+            .filter_map(|item| {
+                if let Ok((_, value)) = item {
+                    bincode::deserialize::<SeriesInfo>(&value).ok()
                 } else {
                     None
                 }

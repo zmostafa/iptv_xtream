@@ -69,7 +69,7 @@ pub struct SeriesInfo {
     pub last_modified: String,
     // pub rating: String,
     // pub rating_5based: f32,
-    pub backdrop_path: Option<Vec<String>>,
+    // pub backdrop_path: Option<Vec<String>>,
     pub youtube_trailer: String,
     pub episode_run_time: String,
     pub category_id: String,

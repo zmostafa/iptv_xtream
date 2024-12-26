@@ -13,12 +13,18 @@ mod models;
 async fn main() -> Result<(), eframe::Error> {
     env_logger::init();
     // tracing_subscriber::fmt::init(); // Initialize tracing subscriber
-    let app = IPTVApp::new();
+
+    let options = eframe::NativeOptions {
+        run_and_return: false,
+        // initial_window_size: Some([800.0, 600.0].into()),
+        vsync: true, // Enables vertical synchronization for consistent frame rate
+        ..Default::default()
+    };
     eframe::run_native(
         "IPTV App",
-        NativeOptions::default(),
+        options,
         Box::new(|_cc| {
             egui_extras::install_image_loaders(&_cc.egui_ctx);
-            Ok(Box::new(app))}),
+            Ok(Box::new(IPTVApp::new(&_cc.egui_ctx)))}),
     )
 }

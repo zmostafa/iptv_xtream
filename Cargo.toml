@@ -10,7 +10,8 @@ sled = "0.34"
 tokio = { version = "1.0", features = ["full"] }
 egui = "0.30.0"
 egui_extras = {version = "0.30.0" , features = ["default", "all_loaders"]}
-eframe = "0.30.0"
+eframe = {version = "0.30.0", renderer = "wgpu"}
+wgpu = "23.0.1"
 serde_json = "1.0"
 image = {version = "0.25.5", features = ["jpeg", "png"]}
 futures = "0.3.31"
@@ -24,4 +25,4 @@ unicode-bidi = "0.3.18"
 harfbuzz = "=0.4"
 rustybuzz = "0.20.1"
 arabic_reshaper = "0.4.2"
-isahc = "=0.8.2"
+isahc = "1.7.2"

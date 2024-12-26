@@ -1,7 +1,6 @@
 use crate::api_client::{
-    authenticate, fetch_all_live_streams, fetch_all_movies, fetch_live_categories,
-    fetch_live_streams, fetch_serie_info, fetch_series, fetch_series_categories,
-    fetch_vod_categories, fetch_vod_streams,
+    authenticate, fetch_all_live_streams, fetch_all_movies, fetch_all_series,
+    fetch_live_categories, fetch_serie_info, fetch_series_categories, fetch_vod_categories,
 };
 use crate::database::Database;
 use crate::models::live::{Category, LiveStream};
@@ -23,7 +22,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use unicode_bidi::{BidiInfo, Direction, Level};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum AppView {
     Login,
     Categories,
@@ -39,10 +38,10 @@ enum AppView {
     Search,
 }
 
-// #[derive(Clone)]
+#[derive(Debug)]
 pub struct IPTVApp {
-    client: reqwest::Client, // Shared client
-    // client: isahc::HttpClient,
+    // client: reqwest::Client, // Shared client
+    client: isahc::HttpClient,
     api_url: String,
     username: String,
     password: String,
@@ -57,25 +56,24 @@ pub struct IPTVApp {
 }
 
 impl IPTVApp {
-    pub fn new() -> Self {
+    pub fn new(ctx: &egui::Context) -> Self {
         let db = Database::new("iptv_cache");
         let api_url = db.get::<String>("api_url").unwrap_or_default();
         let username = db.get::<String>("username").unwrap_or_default();
         let password = db.get::<String>("password").unwrap_or_default();
 
+        // Set fonts
+        configure_fonts(ctx);
+
         IPTVApp {
-            // client: reqwest::Client::new(), // Initialize once
-            client: reqwest::Client::builder()
-                .timeout(Duration::from_secs(5))
-                .build()
-                .unwrap(),
-            // client: HttpClient::builder()
+            // client: reqwest::Client::builder()
             //     .timeout(Duration::from_secs(5))
             //     .build()
-            //     .expect("[FATAL] Failed to create HTTP Client"),
-            api_url,
-            username,
-            password,
+            //     .unwrap(),
+            client: isahc::HttpClient::new().expect("Failed to create a Client"),
+            api_url: "http://lionztv.com:8080".to_string(),
+            username: "zyad67855".to_string(),
+            password: "00985678".to_string(),
             authenticated: false,
             categories: Arc::new(Mutex::new(vec![])),
             db,
@@ -106,82 +104,35 @@ impl IPTVApp {
     }
 
     pub async fn fetch_and_save_all_live_streams(&mut self) {
-        // match fetch_live_categories(&self.client, &self.api_url, &self.username, &self.password)
-        //     .await
-        // {
-        //     Ok(categories) => {
-        //         self.db.save_live_categories(categories.clone());
-        //         log::info!("Live categories fetched and saved.");
-        //         log::info!(
-        //             "[CATIGORIES] Number of Live stream categories: {}",
-        //             categories.len()
-        //         );
-        //         // for category in categories {
-        //             if let Ok(streams) = fetch_live_streams(
-        //                 &self.client,
-        //                 &self.api_url,
-        //                 &self.username,
-        //                 &self.password,
-        //                 Some(""),
-        //             )
-        //             .await
-        //             {
-        //                 for stream in streams {
-        //                     if let Some(category_id) = &stream.category_id {
-        //                         self.db.save_live_stream(category_id, &stream);
-        //                     } else {
-        //                         log::warn!("Stream {} has no category ID.", stream.name);
-        //                     }
-        //                 }
-        //                 // self.db.save_live_streams(&category.category_id, streams);
-        //                 // log::info!("Saved streams for category: {}", category.category_name);
-        //             } else {
-        //                 log::error!(
-        //                     "Failed to fetch Live streams for category"
-        //                 );
-        //             }
-        //         // }
-        //     }
-        //     Err(err) => {
-        //         log::error!("Failed to fetch live categories: {}", err);
-        //     }
-        // }
-
-        // match fetch_vod_categories(&self.client, &self.api_url, &self.username, &self.password)
-        //     .await
-        // {
-        //     Ok(categories) => {
-        //         self.db.save_movies_categories(categories.clone());
-        //         log::info!("Movies categories fetched and saved.");
-
-        //         for category in categories {
-        //             if let Ok(streams) = fetch_vod_streams(
-        //                 &self.client,
-        //                 &self.api_url,
-        //                 &self.username,
-        //                 &self.password,
-        //                 Some(&category.category_id),
-        //             )
-        //             .await
-        //             {
-        //                 self.db.save_movies_streams(&category.category_id, streams);
-        //                 log::info!("Saved Movies for category: {}", category.category_name);
-        //             } else {
-        //                 log::error!(
-        //                     "Failed to fetch Movies for category: {}",
-        //                     category.category_name
-        //                 );
-        //             }
-        //         }
-        //     }
-        //     Err(err) => {
-        //         log::error!("Failed to fetch Movies categories: {}", err);
-        //     }
-        // }
-
-        // (self.fetch_and_save_series_data().await);
-        // log::info!("[INFO] Fetching is done");
         // Fetch all live streams
+        match fetch_live_categories(&self.client, &self.api_url, &self.username, &self.password)
+            .await
+        {
+            Ok(categories) => {
+                self.db.save_live_categories(categories.clone());
+                log::info!("Live categories fetched and saved.");
+                log::info!(
+                    "[CATIGORIES] Number of Live stream categories: {}",
+                    categories.len()
+                );
+            }
+            Err(err) => {
+                log::error!("Failed to fetch live categories: {}", err);
+            }
+        }
+
+        match fetch_vod_categories(&self.client, &self.api_url, &self.username, &self.password)
+            .await
+        {
+            Ok(categories) => {
+                self.db.save_movies_categories(categories.clone());
+                log::info!("Movies categories fetched and saved.");
+            }
+            Err(err) => {
+                log::error!("Failed to fetch Movies categories: {}", err);
+            }
+        }
+
         match fetch_all_live_streams(&self.client, &self.api_url, &self.username, &self.password)
             .await
         {
@@ -212,6 +163,9 @@ impl IPTVApp {
                 log::error!("Failed to fetch all movies: {}", err);
             }
         }
+
+        (self.fetch_and_save_series_data().await);
+        // log::info!("[INFO] Fetching is done");
     }
 
     pub async fn fetch_and_save_series_data(&self) {
@@ -224,80 +178,133 @@ impl IPTVApp {
                 log::info!("Series categories fetched and saved.");
 
                 // Process each category sequentially
-                for category in categories {
-                    log::info!("Fetching series for category: {}", category.category_name);
+                // for category in categories {
+                //     log::info!("Fetching series for category: {}", category.category_name);
 
-                    // Fetch series for the category
-                    match fetch_series(
-                        &self.client,
-                        &self.api_url,
-                        &self.username,
-                        &self.password,
-                        Some(&category.category_id),
-                    )
-                    .await
-                    {
-                        Ok(series_list) => {
-                            self.db
-                                .save_series_streams(&category.category_id, series_list.clone());
-                            log::info!("Saved Series for category: {}", category.category_name);
+                //     // Fetch series for the category
+                //     match fetch_series(
+                //         &self.client,
+                //         &self.api_url,
+                //         &self.username,
+                //         &self.password,
+                //         Some(&category.category_id),
+                //     )
+                //     .await
+                //     {
+                //         Ok(series_list) => {
+                //             self.db
+                //                 .save_series_streams(&category.category_id, series_list.clone());
+                //             log::info!("Saved Series for category: {}", category.category_name);
 
-                            // Process each series sequentially
-                            for series in series_list {
-                                if let Some(series_id) = series.series_id {
-                                    log::info!("Fetching details for series ID: {}", series_id);
+                //             // Process each series sequentially
+                //             for series in series_list {
+                //                 if let Some(series_id) = series.series_id {
+                //                     log::info!("Fetching details for series ID: {}", series_id);
 
-                                    match fetch_serie_info(
-                                        &self.client,
-                                        &self.api_url,
-                                        &self.username,
-                                        &self.password,
-                                        &series_id,
-                                    )
-                                    .await
-                                    {
-                                        Ok(series_info) => {
-                                            self.db.save_series_info(&series_id, &series_info);
-                                            log::info!(
-                                                "Saved series info for series ID: {}",
-                                                series_id
-                                            );
-                                        }
-                                        Err(err) => {
-                                            log::error!(
-                                                "Failed to fetch series info for series ID {}: {}",
-                                                series_id,
-                                                err
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Err(err) => {
-                            log::error!(
-                                "Failed to fetch series for category {}: {}",
-                                category.category_name,
-                                err
-                            );
-                        }
-                    }
-                }
+                //                     match fetch_serie_info(
+                //                         &self.client,
+                //                         &self.api_url,
+                //                         &self.username,
+                //                         &self.password,
+                //                         &series_id,
+                //                     )
+                //                     .await
+                //                     {
+                //                         Ok(series_info) => {
+                //                             self.db.save_series_info(&series_id, &series_info);
+                //                             log::info!(
+                //                                 "Saved series info for series ID: {}",
+                //                                 series_id
+                //                             );
+                //                         }
+                //                         Err(err) => {
+                //                             log::error!(
+                //                                 "Failed to fetch series info for series ID {}: {}",
+                //                                 series_id,
+                //                                 err
+                //                             );
+                //                         }
+                //                     }
+                //                 }
+                //             }
+                //         }
+                //         Err(err) => {
+                //             log::error!(
+                //                 "Failed to fetch series for category {}: {}",
+                //                 category.category_name,
+                //                 err
+                //             );
+                //         }
+                //     }
+                // }
             }
             Err(err) => {
                 log::error!("Failed to fetch series categories: {}", err);
             }
         }
+
+        match fetch_all_series(&self.client, &self.api_url, &self.username, &self.password).await {
+            Ok(series) => {
+                for serie in series {
+                    self.db
+                        .save_individual_serieInfo(&serie.category_id, &serie);
+                }
+            }
+            Err(err) => {
+                log::error!("Failed to fetch all series: {}", err);
+            }
+        }
+
+        // Process each series sequentially
+        // let series_categories = self.db.get_series_categories();
+        // for category in series_categories {
+        
+        let series_list = self.db.get_all_seriesInfo();
+        // for series in series_list {
+        //     if let Some(series_id) = series.series_id {
+        //         log::info!("Fetching details for series ID: {}", series_id);
+
+        //         match fetch_serie_info(
+        //             &self.client,
+        //             &self.api_url,
+        //             &self.username,
+        //             &self.password,
+        //             &series_id,
+        //         )
+        //         .await
+        //         {
+        //             Ok(series_info) => {
+        //                 self.db.save_series_info(&series_id, &series_info);
+        //                 log::info!("Saved series info for series ID: {}", series_id);
+        //             }
+        //             Err(err) => {
+        //                 log::error!(
+        //                     "Failed to fetch series info for series ID {}: {}",
+        //                     series_id,
+        //                     err
+        //                 );
+        //             }
+        //         }
+        //     }
+        //     // }
+        // }
     }
 
     fn render_login(&mut self, ctx: &egui::Context) {
+        log::info!("Rendering login view...");
+
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Login to IPTV");
 
             ui.horizontal(|ui| {
                 ui.label("Server URL: ");
-                ui.text_edit_singleline(&mut self.api_url);
+                log::info!("Before: {}", self.api_url); // Log state before input
+                if ui.text_edit_singleline(&mut self.api_url).changed() {
+                    log::info!("Updated Server URL: {}", self.api_url);
+                }
             });
+            log::info!("After: {}", self.api_url); // Log state after input
+
             ui.horizontal(|ui| {
                 ui.label("Username: ");
                 ui.text_edit_singleline(&mut self.username);
@@ -336,8 +343,10 @@ impl IPTVApp {
 
             if ui.button("Fetch Content").clicked() {
                 // let mut app_clone = self.clone();
-                // tokio::spawn(async move {
+                // let rt = self.runtime.handle().clone();
+                // rt.spawn(async move {
                 futures::executor::block_on(self.fetch_and_save_all_live_streams());
+                // self.fetch_and_save_all_live_streams().await;
                 // });
             }
         });
@@ -552,7 +561,7 @@ impl IPTVApp {
     }
 
     fn render_series_list(&mut self, ctx: &egui::Context, category_id: &str) {
-        let series_list = self.db.get_series_streams(category_id);
+        let series_list = self.db.get_individual_seriesInfo(category_id);
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Series List");
@@ -611,6 +620,7 @@ impl IPTVApp {
     }
 
     fn render_series_detail(&mut self, ctx: &egui::Context, series_id: &i64) {
+        // TODO: fetch series info when a series is selected and it's no in DB
         let series_detail = self
             .db
             .get_series_info(series_id)
@@ -629,7 +639,7 @@ impl IPTVApp {
                     last_modified: "".to_string(),
                     // rating: "".to_string(),
                     // rating_5based: 0.0,
-                    backdrop_path: None,
+                    // backdrop_path: None,
                     youtube_trailer: "".to_string(),
                     episode_run_time: "".to_string(),
                     category_id: "".to_string(),
@@ -684,7 +694,7 @@ impl IPTVApp {
                     last_modified: "".to_string(),
                     // rating: "".to_string(),
                     // rating_5based: 0.0,
-                    backdrop_path: None,
+                    // backdrop_path: None,
                     youtube_trailer: "".to_string(),
                     episode_run_time: "".to_string(),
                     category_id: "".to_string(),
@@ -870,7 +880,8 @@ impl IPTVApp {
 
 impl eframe::App for IPTVApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        configure_fonts(ctx);
+        log::info!("IPTVApp Update for {:?}", self.current_view);
+        // configure_fonts(ctx);
         let current_view = self.current_view.clone();
 
         match current_view {
@@ -897,6 +908,7 @@ impl eframe::App for IPTVApp {
 }
 
 fn configure_fonts(ctx: &egui::Context) {
+    log::info!("Configuring fonts.");
     use egui::FontFamily::{Monospace, Proportional};
 
     let mut fonts = egui::FontDefinitions::default();
