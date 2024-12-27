@@ -185,12 +185,8 @@ impl IPTVApp {
 
             ui.horizontal(|ui| {
                 ui.label("Server URL: ");
-                log::info!("Before: {}", self.api_url); // Log state before input
-                if ui.text_edit_singleline(&mut self.api_url).changed() {
-                    log::info!("Updated Server URL: {}", self.api_url);
-                }
+                ui.text_edit_singleline(&mut self.api_url)
             });
-            log::info!("After: {}", self.api_url); // Log state after input
 
             ui.horizontal(|ui| {
                 ui.label("Username: ");
