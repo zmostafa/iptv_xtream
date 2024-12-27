@@ -10,16 +10,18 @@ mod gui;
 mod models;
 
 #[tokio::main(flavor = "multi_thread")]
-async fn main() -> Result<(), eframe::Error> {
+async fn main() -> eframe::Result {
     env_logger::init();
     // tracing_subscriber::fmt::init(); // Initialize tracing subscriber
 
     let options = eframe::NativeOptions {
         run_and_return: false,
         // initial_window_size: Some([800.0, 600.0].into()),
-        vsync: true, // Enables vertical synchronization for consistent frame rate
+        viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
+        // vsync: true, // Enables vertical synchronization for consistent frame rate
         ..Default::default()
     };
+
     eframe::run_native(
         "IPTV App",
         options,

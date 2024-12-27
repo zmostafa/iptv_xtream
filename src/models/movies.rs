@@ -14,6 +14,7 @@ pub struct Movie {
     pub stream_type: String,
     pub stream_id: u32,
     pub stream_icon: String,
+    // Rating is sometimes float not a string which breaks serialzation
     // pub rating: StringOrFloat,
     pub rating_5based: f32,
     pub added: Option<String>,

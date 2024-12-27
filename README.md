@@ -5,3 +5,4 @@ IPTV Player written in Rust
 [] Fix fetching content
 [] Fetch content only when required.
 [] Add caching
+[] Model gui on Series Troxide, but Arabic support using iced is not guranteed. 
