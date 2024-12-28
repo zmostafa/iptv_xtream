@@ -7,12 +7,18 @@ use crate::database::Database;
 use crate::models::movies::Movie;
 use eframe::egui;
 use egui::{cache, vec2, TextBuffer};
-use isahc::{HttpClient, ReadResponseExt};
+use isahc::config::Configurable;
+use isahc::{AsyncReadResponseExt, HttpClient, ReadResponseExt};
 use rustybuzz::{Face, UnicodeBuffer};
 use std::error::Error;
 use std::io::ErrorKind;
 use std::process::{Child, Command, Stdio};
+use std::time::Duration;
+use tokio::sync::Semaphore;
 use unicode_bidi::BidiInfo;
+
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Debug)]
 enum AppView {
@@ -32,6 +38,7 @@ enum AppView {
 
 #[derive(Debug)]
 pub struct IPTVApp {
+    image_cache: Arc<Mutex<HashMap<String, Vec<u8>>>>, // Cached images
     client: isahc::HttpClient,
     api_url: String,
     username: String,
@@ -58,7 +65,14 @@ impl IPTVApp {
         configure_fonts(ctx);
 
         IPTVApp {
-            client: isahc::HttpClient::new().expect("Failed to create a Client"),
+            image_cache: Arc::new(Mutex::new(HashMap::new())),
+            // client: isahc::HttpClient::new().expect("Failed to create a Client"),
+            client: isahc::HttpClient::builder()
+                .redirect_policy(isahc::config::RedirectPolicy::Follow)
+                .tcp_keepalive(Duration::from_secs(50))
+                .max_connections_per_host(100) // Adjust based on expected concurrency
+                .build()
+                .unwrap(),
             api_url,
             username,
             password,
@@ -305,6 +319,7 @@ impl IPTVApp {
 
     fn render_live_streams(&mut self, ctx: &egui::Context, category_id: &str) {
         let streams = self.db.get_live_streams(category_id);
+        let cache = self.image_cache.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Live Streams");
@@ -315,50 +330,73 @@ impl IPTVApp {
 
             ui.separator();
 
-            // Calculate grid properties based on screen width
+            // Calculate grid properties
             let available_width = ui.available_width();
-            let min_item_width = 150.0; // Minimum width for each grid item
-            let num_columns = (available_width / min_item_width).floor() as usize; // Fit as many columns as possible
-            let item_size = available_width / num_columns as f32; // Dynamically size each item
+            let min_item_width = 150.0;
+            let num_columns = (available_width / min_item_width).floor() as usize;
+            let item_size = available_width / num_columns as f32;
 
-            // Add a scrollable grid to display the movies
             egui::ScrollArea::vertical().show(ui, |ui| {
                 egui::Grid::new("live_grid")
-                    .spacing([20.0, 20.0]) // Spacing between items
-                    .min_col_width(item_size) // Minimum column width
+                    .spacing([20.0, 20.0])
+                    .min_col_width(item_size)
                     .show(ui, |ui| {
                         for (i, stream) in streams.iter().enumerate() {
-                            // Display the live icon and name
                             ui.vertical(|ui| {
-                                if !stream.stream_icon.is_empty() {
-                                    // Attempt to display the image
-                                    let image_data = Self::load_or_download_image(
-                                        &self.client,
-                                        &self.cache,
-                                        &stream.stream_icon,
-                                    )
-                                    .unwrap_or_else(|e| {
-                                        log::error!("Failed to fetch image: {}", e);
-                                        vec![] // Fallback to an empty image or placeholder
-                                    });
+                                let image_url = stream.stream_icon.clone();
 
+                                // Display the image or placeholder
+                                if self.cache.is_cached(&image_url) {
+                                    let image_data =
+                                        self.cache.load_image(&image_url).unwrap_or_else(|e| {
+                                            log::error!("Failed to fetch image: {}", e);
+                                            vec![] // Fallback to an empty image or placeholder
+                                        });
                                     ui.add(
-                                        egui::Image::from_bytes(stream.name.clone(), image_data)
-                                            .rounding(10.0)
-                                            .fit_to_exact_size(vec2(150.0, 150.0)),
+                                        egui::Image::from_bytes(
+                                            stream.name.clone(),
+                                            image_data.clone(),
+                                        )
+                                        .rounding(10.0)
+                                        .fit_to_exact_size(vec2(150.0, 150.0)),
                                     );
                                 } else {
-                                    // Placeholder for missing image
-                                    ui.label("[No Image]");
+                                    ui.label("[Loading...]");
+
+                                    // Spawn a task to fetch the image if not already fetched
+                                    let image_url_clone = image_url.clone();
+                                    let cache_clone = cache.clone();
+                                    let client_clone = self.client.clone();
+                                    let cache_file = self.cache.clone();
+                                    let db_clone = self.db.clone();
+
+                                    tokio::spawn(async move {
+                                        let app = IPTVApp {
+                                            client: client_clone,
+                                            cache: cache_file,
+                                            image_cache: cache_clone,
+                                            // Initialize other fields with temporary values
+                                            api_url: "".to_string(),
+                                            username: "".to_string(),
+                                            password: "".to_string(),
+                                            db: db_clone,
+                                            current_view: AppView::LiveCategories,
+                                            view_stack: Vec::new(),
+                                            authenticated: false,
+                                            mpv_process: None,
+                                            search_query: String::new(), // Initialize search query
+                                            search_results: vec![],
+                                        };
+                                        app.fetch_image(image_url_clone).await;
+                                    });
                                 }
 
                                 // Display the live name
                                 let display_name = Self::preprocess_arabic_text_v1(&stream.name);
                                 ui.label(&display_name);
 
-                                // Add a play button
+                                // Play button
                                 if ui.button("Play").clicked() {
-                                    println!("Play stream: {}", stream.stream_id);
                                     let stream_url = format!(
                                         "{}/{}/{}/{}/{}.{}",
                                         self.api_url,
@@ -366,15 +404,14 @@ impl IPTVApp {
                                         self.username,
                                         self.password,
                                         stream.stream_id,
-                                        "ts".to_string()
+                                        "ts"
                                     );
-
                                     self.view_stack.push(self.current_view.clone());
                                     self.current_view = AppView::LiveStreams(stream_url);
                                 }
                             });
 
-                            // Add a new row every 4 items (adjust as needed)
+                            // End row every `num_columns` items
                             if (i + 1) % num_columns == 0 {
                                 ui.end_row();
                             }
@@ -386,6 +423,7 @@ impl IPTVApp {
 
     fn render_movies_streams(&mut self, ctx: &egui::Context, category_id: &str) {
         let streams = self.db.get_movies_streams(category_id);
+        let cache = self.image_cache.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // TODO: Change this to Category name.
@@ -409,29 +447,55 @@ impl IPTVApp {
                     .spacing([20.0, 20.0]) // Spacing between items
                     .min_col_width(item_size) // Minimum column width
                     .show(ui, |ui| {
+                        log::info!("Displaying movies grid");
                         for (i, stream) in streams.iter().enumerate() {
                             // Display the movie poster and name
                             ui.vertical(|ui| {
-                                if !stream.stream_icon.is_empty() {
-                                    // Attempt to display the image
-                                    let image_data = Self::load_or_download_image(
-                                        &self.client,
-                                        &self.cache,
-                                        &stream.stream_icon,
-                                    )
-                                    .unwrap_or_else(|e| {
-                                        log::error!("Failed to fetch image: {}", e);
-                                        vec![] // Fallback to an empty image or placeholder
-                                    });
+                                let image_url = stream.stream_icon.clone();
 
+                                // Display the image or placeholder
+                                if self.cache.is_cached(&image_url) {
+                                    let image_data =
+                                        self.cache.load_image(&image_url).unwrap_or_else(|e| {
+                                            log::error!("Failed to fetch image: {}", e);
+                                            vec![] // Fallback to an empty image or placeholder
+                                        });
                                     ui.add(
                                         egui::Image::from_bytes(stream.name.clone(), image_data)
                                             .rounding(10.0)
                                             .fit_to_exact_size(vec2(150.0, 150.0)),
                                     );
                                 } else {
-                                    // Placeholder for missing image
-                                    ui.label("[No Image]");
+                                    ui.label("[Loading...]");
+
+                                    // Spawn a task to fetch the image if not already fetched
+                                    let image_url_clone = image_url.clone();
+                                    let cache_clone = cache.clone();
+                                    let client_clone = self.client.clone();
+                                    let cache_file = self.cache.clone();
+                                    let db_clone = self.db.clone();
+
+                                    tokio::spawn(async move {
+                                        // let _permit = semaphore.acquire().await.unwrap(); // Acquire a permit
+
+                                        let app = IPTVApp {
+                                            client: client_clone,
+                                            cache: cache_file,
+                                            image_cache: cache_clone,
+                                            // Initialize other fields with temporary values
+                                            api_url: "".to_string(),
+                                            username: "".to_string(),
+                                            password: "".to_string(),
+                                            db: db_clone,
+                                            current_view: AppView::LiveCategories,
+                                            view_stack: Vec::new(),
+                                            authenticated: false,
+                                            mpv_process: None,
+                                            search_query: String::new(), // Initialize search query
+                                            search_results: vec![],
+                                        };
+                                        app.fetch_image(image_url_clone).await;
+                                    });
                                 }
 
                                 // Display the movie name
@@ -814,6 +878,40 @@ impl IPTVApp {
                 Err(format!("Network error: {}", err).into())
             }
         }
+    }
+
+    async fn fetch_image(&self, image_url: String) {
+        // Check if image is already in the memory cache
+        {
+            // if cache.lock().unwrap().contains_key(&image_url) {
+            //     return; // Already cached
+            // }
+        }
+
+        // Fetch from file cache or download
+        let image_data = if self.cache.is_cached(&image_url) {
+            log::info!("Loading image from file cache: {}", image_url);
+            self.cache
+                .load_image(&image_url)
+                .expect("Failed to load cached image")
+        } else {
+            log::info!("Downloading image: {}", image_url);
+            let mut response = self
+                .client
+                .get_async(&image_url)
+                .await
+                .expect("Failed to fetch image");
+            let data = response.bytes().await;
+            let image = data.expect("Failure");
+            self.cache
+                .save_image(&image_url, &image)
+                .expect("Failed to save image to cache");
+            image
+        };
+
+        // Add to in-memory cache
+        log::info!("Adding image to cahce.");
+        // cache.lock().unwrap().insert(image_url, image_data);
     }
 }
 

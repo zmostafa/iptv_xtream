@@ -2,7 +2,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImageCache {
     cache_dir: PathBuf,
 }
@@ -31,6 +31,7 @@ impl ImageCache {
 
     // Save an image to the cache
     pub fn save_image(&self, url: &str, data: &[u8]) -> io::Result<()> {
+        log::info!("Saving image to cache : {}", url);
         let cache_path = self.get_cache_path(url);
         let mut file = fs::File::create(cache_path)?;
         file.write_all(data)
