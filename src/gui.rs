@@ -70,7 +70,7 @@ impl IPTVApp {
             client: isahc::HttpClient::builder()
                 .redirect_policy(isahc::config::RedirectPolicy::Follow)
                 .tcp_keepalive(Duration::from_secs(50))
-                .max_connections_per_host(100) // Adjust based on expected concurrency
+                // .max_connections_per_host(100) // Adjust based on expected concurrency
                 .build()
                 .unwrap(),
             api_url,
@@ -532,6 +532,7 @@ impl IPTVApp {
 
     fn render_series_list(&mut self, ctx: &egui::Context, category_id: &str) {
         let series_list = self.db.get_serieInfo_for_all_series(category_id);
+        let cache = self.image_cache.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Series List");
@@ -557,26 +558,52 @@ impl IPTVApp {
                         for (i, serie) in series_list.iter().enumerate() {
                             // Display the serie poster and name
                             ui.vertical(|ui| {
-                                if !serie.cover.is_empty() {
-                                    // Attempt to display the image
-                                    let image_data = Self::load_or_download_image(
-                                        &self.client,
-                                        &self.cache,
-                                        &serie.cover,
-                                    )
-                                    .unwrap_or_else(|e| {
-                                        log::error!("Failed to fetch image: {}", e);
-                                        vec![] // Fallback to an empty image or placeholder
-                                    });
+                                let image_url = serie.cover.clone();
 
+                                // Display the image or placeholder
+                                if self.cache.is_cached(&image_url) {
+                                    let image_data =
+                                        self.cache.load_image(&image_url).unwrap_or_else(|e| {
+                                            log::error!("Failed to fetch image: {}", e);
+                                            vec![] // Fallback to an empty image or placeholder
+                                        });
                                     ui.add(
-                                        egui::Image::from_bytes(serie.name.clone(), image_data)
-                                            .rounding(10.0)
-                                            .fit_to_exact_size(vec2(150.0, 150.0)),
+                                        egui::Image::from_bytes(
+                                            serie.name.clone(),
+                                            image_data.clone(),
+                                        )
+                                        .rounding(10.0)
+                                        .fit_to_exact_size(vec2(150.0, 150.0)),
                                     );
                                 } else {
-                                    // Placeholder for missing image
-                                    ui.label("[No Image]");
+                                    ui.label("[Loading...]");
+
+                                    // Spawn a task to fetch the image if not already fetched
+                                    let image_url_clone = image_url.clone();
+                                    let cache_clone = cache.clone();
+                                    let client_clone = self.client.clone();
+                                    let cache_file = self.cache.clone();
+                                    let db_clone = self.db.clone();
+
+                                    tokio::spawn(async move {
+                                        let app = IPTVApp {
+                                            client: client_clone,
+                                            cache: cache_file,
+                                            image_cache: cache_clone,
+                                            // Initialize other fields with temporary values
+                                            api_url: "".to_string(),
+                                            username: "".to_string(),
+                                            password: "".to_string(),
+                                            db: db_clone,
+                                            current_view: AppView::LiveCategories,
+                                            view_stack: Vec::new(),
+                                            authenticated: false,
+                                            mpv_process: None,
+                                            search_query: String::new(), // Initialize search query
+                                            search_results: vec![],
+                                        };
+                                        app.fetch_image(image_url_clone).await;
+                                    });
                                 }
 
                                 // Display the serie name
