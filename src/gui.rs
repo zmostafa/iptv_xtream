@@ -17,7 +17,7 @@ use std::time::Duration;
 use tokio::sync::Semaphore;
 use unicode_bidi::BidiInfo;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Debug)]
@@ -39,6 +39,7 @@ enum AppView {
 #[derive(Debug)]
 pub struct IPTVApp {
     image_cache: Arc<Mutex<HashMap<String, Vec<u8>>>>, // Cached images
+    ongoing_requests: HashSet<String>,
     client: isahc::HttpClient,
     api_url: String,
     username: String,
@@ -66,6 +67,7 @@ impl IPTVApp {
 
         IPTVApp {
             image_cache: Arc::new(Mutex::new(HashMap::new())),
+            ongoing_requests: HashSet::new(),
             // client: isahc::HttpClient::new().expect("Failed to create a Client"),
             client: isahc::HttpClient::builder()
                 .redirect_policy(isahc::config::RedirectPolicy::Follow)
@@ -200,24 +202,27 @@ impl IPTVApp {
 
     fn render_login(&mut self, ctx: &egui::Context) {
         log::info!("Rendering login view...");
-
+    
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Login to IPTV");
-
-            ui.horizontal(|ui| {
-                ui.label("Server URL: ");
-                ui.text_edit_singleline(&mut self.api_url)
-            });
-
-            ui.horizontal(|ui| {
-                ui.label("Username: ");
-                ui.text_edit_singleline(&mut self.username);
-            });
-            ui.horizontal(|ui| {
-                ui.label("Password: ");
-                ui.text_edit_singleline(&mut self.password);
-            });
-
+    
+            egui::Grid::new("login_grid")
+                .num_columns(2)
+                .spacing([10.0, 10.0])
+                .show(ui, |ui| {
+                    ui.label("Server URL: ");
+                    ui.text_edit_singleline(&mut self.api_url);
+                    ui.end_row();
+    
+                    ui.label("Username: ");
+                    ui.text_edit_singleline(&mut self.username);
+                    ui.end_row();
+    
+                    ui.label("Password: ");
+                    ui.text_edit_singleline(&mut self.password);
+                    ui.end_row();
+                });
+    
             if ui.button("Login").clicked() {
                 if futures::executor::block_on(self.authenticate()) {
                     self.authenticated = true;
@@ -363,24 +368,27 @@ impl IPTVApp {
                                     // Placeholder for loading
                                     ui.label("[Loading...]");
 
-                                    // Fetch image in the background
-                                    let image_url_clone = image_url.clone();
-                                    let cache_clone = cache.clone();
-                                    let client_clone = self.client.clone();
-                                    let ctx_clone = ctx.clone();
+                                    if !self.ongoing_requests.contains(&image_url) {
+                                        self.ongoing_requests.insert(image_url.clone());
+                                        // Fetch image in the background
+                                        let image_url_clone = image_url.clone();
+                                        let cache_clone = cache.clone();
+                                        let client_clone = self.client.clone();
+                                        let ctx_clone = ctx.clone();
 
-                                    tokio::spawn(async move {
-                                        if let Err(err) = Self::fetch_and_cache_image(
-                                            client_clone,
-                                            cache_clone,
-                                            &image_url_clone,
-                                        )
-                                        .await
-                                        {
-                                            log::error!("Failed to fetch image: {}", err);
-                                        }
-                                        ctx_clone.request_repaint(); // Update UI
-                                    });
+                                        tokio::spawn(async move {
+                                            if let Err(err) = Self::fetch_and_cache_image(
+                                                client_clone,
+                                                cache_clone,
+                                                &image_url_clone,
+                                            )
+                                            .await
+                                            {
+                                                log::error!("Failed to fetch image: {}", err);
+                                            }
+                                            ctx_clone.request_repaint(); // Update UI
+                                        });
+                                    }
                                 }
 
                                 // Display the live name
@@ -463,24 +471,27 @@ impl IPTVApp {
                                     // Placeholder for loading
                                     ui.label("[Loading...]");
 
-                                    // Fetch image in the background
-                                    let image_url_clone = image_url.clone();
-                                    let cache_clone = cache.clone();
-                                    let client_clone = self.client.clone();
-                                    let ctx_clone = ctx.clone();
+                                    if !self.ongoing_requests.contains(&image_url) {
+                                        // Fetch image in the background
+                                        self.ongoing_requests.insert(image_url.clone());
+                                        let image_url_clone = image_url.clone();
+                                        let cache_clone = cache.clone();
+                                        let client_clone = self.client.clone();
+                                        let ctx_clone = ctx.clone();
 
-                                    tokio::spawn(async move {
-                                        if let Err(err) = Self::fetch_and_cache_image(
-                                            client_clone,
-                                            cache_clone,
-                                            &image_url_clone,
-                                        )
-                                        .await
-                                        {
-                                            log::error!("Failed to fetch image: {}", err);
-                                        }
-                                        ctx_clone.request_repaint(); // Update UI
-                                    });
+                                        tokio::spawn(async move {
+                                            if let Err(err) = Self::fetch_and_cache_image(
+                                                client_clone,
+                                                cache_clone,
+                                                &image_url_clone,
+                                            )
+                                            .await
+                                            {
+                                                log::error!("Failed to fetch image: {}", err);
+                                            }
+                                            ctx_clone.request_repaint(); // Update UI
+                                        });
+                                    }
                                 }
 
                                 // Display the movie name
@@ -543,7 +554,7 @@ impl IPTVApp {
                         for (i, serie) in series_list.iter().enumerate() {
                             // Display the serie poster and name
                             ui.vertical(|ui| {
-                                log::info!("Getting serie info : {}" , &serie.name);
+                                log::info!("Getting serie info : {}", &serie.name);
                                 let image_url = serie.cover.clone();
 
                                 if self.cache.is_cached(&image_url) {
@@ -551,39 +562,42 @@ impl IPTVApp {
                                     if let Ok(image_data) = self.cache.load_image(&image_url) {
                                         log::info!("Image found in cache");
                                         ui.add(
-                                            egui::Image::from_bytes(
-                                                serie.name.clone(),
-                                                image_data,
-                                            )
-                                            .rounding(10.0)
-                                            .fit_to_exact_size(vec2(150.0, 150.0)),
+                                            egui::Image::from_bytes(serie.name.clone(), image_data)
+                                                .rounding(10.0)
+                                                .fit_to_exact_size(vec2(150.0, 150.0)),
                                         );
                                     } else {
                                         ui.label("[Error Loading Image]");
                                     }
                                 } else {
                                     // Placeholder for loading
-                                    log::info!("Image not found in cache {}, downloading", image_url);
+                                    log::info!(
+                                        "Image not found in cache {}, downloading",
+                                        image_url
+                                    );
                                     ui.label("[Loading...]");
 
-                                    // Fetch image in the background
-                                    let image_url_clone = image_url.clone();
-                                    let cache_clone = cache.clone();
-                                    let client_clone = self.client.clone();
-                                    let ctx_clone = ctx.clone();
+                                    if !self.ongoing_requests.contains(&image_url) {
+                                        self.ongoing_requests.insert(image_url.clone());
+                                        // Fetch image in the background
+                                        let image_url_clone = image_url.clone();
+                                        let cache_clone = cache.clone();
+                                        let client_clone = self.client.clone();
+                                        let ctx_clone = ctx.clone();
 
-                                    tokio::spawn(async move {
-                                        if let Err(err) = Self::fetch_and_cache_image(
-                                            client_clone,
-                                            cache_clone,
-                                            &image_url_clone,
-                                        )
-                                        .await
-                                        {
-                                            log::error!("Failed to fetch image: {}", err);
-                                        }
-                                        ctx_clone.request_repaint(); // Update UI
-                                    });
+                                        tokio::spawn(async move {
+                                            if let Err(err) = Self::fetch_and_cache_image(
+                                                client_clone,
+                                                cache_clone,
+                                                &image_url_clone,
+                                            )
+                                            .await
+                                            {
+                                                log::error!("Failed to fetch image: {}", err);
+                                            }
+                                            ctx_clone.request_repaint(); // Update UI
+                                        });
+                                    }
                                 }
 
                                 // Display the serie name
@@ -992,7 +1006,7 @@ fn configure_fonts(ctx: &egui::Context) {
     fonts.font_data.insert(
         "custom_arabic".to_owned(),
         egui::FontData::from_static(include_bytes!(
-            "/home/zmostafa/github/xtream/assets/Amiri-Regular.ttf"
+            "../assets/Amiri-Regular.ttf"
         ))
         .into(),
     );
