@@ -538,7 +538,8 @@ impl IPTVApp {
     }
 
     fn render_series_list(&mut self, ctx: &egui::Context, category_id: &str, category_name: &str) {
-        let series_list = self.db.get_serieInfo_for_all_series(category_id);
+        let mut series_list = self.db.get_serieInfo_for_all_series(category_id);
+        series_list.sort_by(|a, b| b.last_modified.cmp(&a.last_modified));
         let cache = self.cache.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
