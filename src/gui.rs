@@ -69,8 +69,8 @@ impl IPTVApp {
             // client: isahc::HttpClient::new().expect("Failed to create a Client"),
             client: isahc::HttpClient::builder()
                 .redirect_policy(isahc::config::RedirectPolicy::Follow)
-                .tcp_keepalive(Duration::from_secs(50))
-                // .max_connections_per_host(100) // Adjust based on expected concurrency
+                .tcp_keepalive(Duration::from_secs(1))
+                .max_connections(1000) // Adjust based on expected concurrency
                 .build()
                 .unwrap(),
             api_url,
@@ -319,7 +319,7 @@ impl IPTVApp {
 
     fn render_live_streams(&mut self, ctx: &egui::Context, category_id: &str) {
         let streams = self.db.get_live_streams(category_id);
-        let cache = self.image_cache.clone();
+        let cache = self.cache.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Live Streams");
@@ -345,49 +345,41 @@ impl IPTVApp {
                             ui.vertical(|ui| {
                                 let image_url = stream.stream_icon.clone();
 
-                                // Display the image or placeholder
                                 if self.cache.is_cached(&image_url) {
-                                    let image_data =
-                                        self.cache.load_image(&image_url).unwrap_or_else(|e| {
-                                            log::error!("Failed to fetch image: {}", e);
-                                            vec![] // Fallback to an empty image or placeholder
-                                        });
-                                    ui.add(
-                                        egui::Image::from_bytes(
-                                            stream.name.clone(),
-                                            image_data.clone(),
-                                        )
-                                        .rounding(10.0)
-                                        .fit_to_exact_size(vec2(150.0, 150.0)),
-                                    );
+                                    // Load image from cache
+                                    if let Ok(image_data) = self.cache.load_image(&image_url) {
+                                        ui.add(
+                                            egui::Image::from_bytes(
+                                                stream.name.clone(),
+                                                image_data,
+                                            )
+                                            .rounding(10.0)
+                                            .fit_to_exact_size(vec2(150.0, 150.0)),
+                                        );
+                                    } else {
+                                        ui.label("[Error Loading Image]");
+                                    }
                                 } else {
+                                    // Placeholder for loading
                                     ui.label("[Loading...]");
 
-                                    // Spawn a task to fetch the image if not already fetched
+                                    // Fetch image in the background
                                     let image_url_clone = image_url.clone();
                                     let cache_clone = cache.clone();
                                     let client_clone = self.client.clone();
-                                    let cache_file = self.cache.clone();
-                                    let db_clone = self.db.clone();
+                                    let ctx_clone = ctx.clone();
 
                                     tokio::spawn(async move {
-                                        let app = IPTVApp {
-                                            client: client_clone,
-                                            cache: cache_file,
-                                            image_cache: cache_clone,
-                                            // Initialize other fields with temporary values
-                                            api_url: "".to_string(),
-                                            username: "".to_string(),
-                                            password: "".to_string(),
-                                            db: db_clone,
-                                            current_view: AppView::LiveCategories,
-                                            view_stack: Vec::new(),
-                                            authenticated: false,
-                                            mpv_process: None,
-                                            search_query: String::new(), // Initialize search query
-                                            search_results: vec![],
-                                        };
-                                        app.fetch_image(image_url_clone).await;
+                                        if let Err(err) = Self::fetch_and_cache_image(
+                                            client_clone,
+                                            cache_clone,
+                                            &image_url_clone,
+                                        )
+                                        .await
+                                        {
+                                            log::error!("Failed to fetch image: {}", err);
+                                        }
+                                        ctx_clone.request_repaint(); // Update UI
                                     });
                                 }
 
@@ -423,7 +415,7 @@ impl IPTVApp {
 
     fn render_movies_streams(&mut self, ctx: &egui::Context, category_id: &str) {
         let streams = self.db.get_movies_streams(category_id);
-        let cache = self.image_cache.clone();
+        let cache = self.cache.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // TODO: Change this to Category name.
@@ -453,48 +445,41 @@ impl IPTVApp {
                             ui.vertical(|ui| {
                                 let image_url = stream.stream_icon.clone();
 
-                                // Display the image or placeholder
                                 if self.cache.is_cached(&image_url) {
-                                    let image_data =
-                                        self.cache.load_image(&image_url).unwrap_or_else(|e| {
-                                            log::error!("Failed to fetch image: {}", e);
-                                            vec![] // Fallback to an empty image or placeholder
-                                        });
-                                    ui.add(
-                                        egui::Image::from_bytes(stream.name.clone(), image_data)
+                                    // Load image from cache
+                                    if let Ok(image_data) = self.cache.load_image(&image_url) {
+                                        ui.add(
+                                            egui::Image::from_bytes(
+                                                stream.name.clone(),
+                                                image_data,
+                                            )
                                             .rounding(10.0)
                                             .fit_to_exact_size(vec2(150.0, 150.0)),
-                                    );
+                                        );
+                                    } else {
+                                        ui.label("[Error Loading Image]");
+                                    }
                                 } else {
+                                    // Placeholder for loading
                                     ui.label("[Loading...]");
 
-                                    // Spawn a task to fetch the image if not already fetched
+                                    // Fetch image in the background
                                     let image_url_clone = image_url.clone();
                                     let cache_clone = cache.clone();
                                     let client_clone = self.client.clone();
-                                    let cache_file = self.cache.clone();
-                                    let db_clone = self.db.clone();
+                                    let ctx_clone = ctx.clone();
 
                                     tokio::spawn(async move {
-                                        // let _permit = semaphore.acquire().await.unwrap(); // Acquire a permit
-
-                                        let app = IPTVApp {
-                                            client: client_clone,
-                                            cache: cache_file,
-                                            image_cache: cache_clone,
-                                            // Initialize other fields with temporary values
-                                            api_url: "".to_string(),
-                                            username: "".to_string(),
-                                            password: "".to_string(),
-                                            db: db_clone,
-                                            current_view: AppView::LiveCategories,
-                                            view_stack: Vec::new(),
-                                            authenticated: false,
-                                            mpv_process: None,
-                                            search_query: String::new(), // Initialize search query
-                                            search_results: vec![],
-                                        };
-                                        app.fetch_image(image_url_clone).await;
+                                        if let Err(err) = Self::fetch_and_cache_image(
+                                            client_clone,
+                                            cache_clone,
+                                            &image_url_clone,
+                                        )
+                                        .await
+                                        {
+                                            log::error!("Failed to fetch image: {}", err);
+                                        }
+                                        ctx_clone.request_repaint(); // Update UI
                                     });
                                 }
 
@@ -532,7 +517,7 @@ impl IPTVApp {
 
     fn render_series_list(&mut self, ctx: &egui::Context, category_id: &str) {
         let series_list = self.db.get_serieInfo_for_all_series(category_id);
-        let cache = self.image_cache.clone();
+        let cache = self.cache.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Series List");
@@ -558,51 +543,46 @@ impl IPTVApp {
                         for (i, serie) in series_list.iter().enumerate() {
                             // Display the serie poster and name
                             ui.vertical(|ui| {
+                                log::info!("Getting serie info : {}" , &serie.name);
                                 let image_url = serie.cover.clone();
 
-                                // Display the image or placeholder
                                 if self.cache.is_cached(&image_url) {
-                                    let image_data =
-                                        self.cache.load_image(&image_url).unwrap_or_else(|e| {
-                                            log::error!("Failed to fetch image: {}", e);
-                                            vec![] // Fallback to an empty image or placeholder
-                                        });
-                                    ui.add(
-                                        egui::Image::from_bytes(
-                                            serie.name.clone(),
-                                            image_data.clone(),
-                                        )
-                                        .rounding(10.0)
-                                        .fit_to_exact_size(vec2(150.0, 150.0)),
-                                    );
+                                    // Load image from cache
+                                    if let Ok(image_data) = self.cache.load_image(&image_url) {
+                                        log::info!("Image found in cache");
+                                        ui.add(
+                                            egui::Image::from_bytes(
+                                                serie.name.clone(),
+                                                image_data,
+                                            )
+                                            .rounding(10.0)
+                                            .fit_to_exact_size(vec2(150.0, 150.0)),
+                                        );
+                                    } else {
+                                        ui.label("[Error Loading Image]");
+                                    }
                                 } else {
+                                    // Placeholder for loading
+                                    log::info!("Image not found in cache {}, downloading", image_url);
                                     ui.label("[Loading...]");
 
-                                    // Spawn a task to fetch the image if not already fetched
+                                    // Fetch image in the background
                                     let image_url_clone = image_url.clone();
                                     let cache_clone = cache.clone();
                                     let client_clone = self.client.clone();
-                                    let cache_file = self.cache.clone();
-                                    let db_clone = self.db.clone();
+                                    let ctx_clone = ctx.clone();
 
                                     tokio::spawn(async move {
-                                        let app = IPTVApp {
-                                            client: client_clone,
-                                            cache: cache_file,
-                                            image_cache: cache_clone,
-                                            // Initialize other fields with temporary values
-                                            api_url: "".to_string(),
-                                            username: "".to_string(),
-                                            password: "".to_string(),
-                                            db: db_clone,
-                                            current_view: AppView::LiveCategories,
-                                            view_stack: Vec::new(),
-                                            authenticated: false,
-                                            mpv_process: None,
-                                            search_query: String::new(), // Initialize search query
-                                            search_results: vec![],
-                                        };
-                                        app.fetch_image(image_url_clone).await;
+                                        if let Err(err) = Self::fetch_and_cache_image(
+                                            client_clone,
+                                            cache_clone,
+                                            &image_url_clone,
+                                        )
+                                        .await
+                                        {
+                                            log::error!("Failed to fetch image: {}", err);
+                                        }
+                                        ctx_clone.request_repaint(); // Update UI
                                     });
                                 }
 
@@ -939,6 +919,37 @@ impl IPTVApp {
         // Add to in-memory cache
         log::info!("Adding image to cahce.");
         // cache.lock().unwrap().insert(image_url, image_data);
+    }
+
+    async fn fetch_and_cache_image(
+        client: HttpClient,
+        cache: ImageCache,
+        image_url: &str,
+    ) -> Result<(), String> {
+        if cache.is_cached(image_url) {
+            log::info!("Image already cached: {}", image_url);
+            return Ok(());
+        }
+
+        log::info!("Downloading image: {}", image_url);
+
+        match client.get_async(image_url).await {
+            Ok(mut response) => {
+                if response.status().is_success() {
+                    let image_data = response
+                        .bytes()
+                        .await
+                        .map_err(|e| format!("Failed to read image data: {}", e))?;
+                    cache
+                        .save_image(image_url, &image_data)
+                        .map_err(|e| format!("Failed to save image to cache: {}", e))?;
+                    Ok(())
+                } else {
+                    Err(format!("Unexpected status code: {}", response.status()))
+                }
+            }
+            Err(err) => Err(format!("Failed to fetch image: {}", err)),
+        }
     }
 }
 

@@ -1,7 +1,6 @@
 use eframe::NativeOptions;
 use crate::gui::IPTVApp;
 use log::{debug, error, log_enabled, info, Level};
-use tracing_subscriber;
 use egui_extras;
 
 mod api_client;
