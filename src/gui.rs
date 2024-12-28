@@ -2,11 +2,15 @@ use crate::api_client::{
     authenticate, fetch_all_live_streams, fetch_all_movies, fetch_all_series,
     fetch_live_categories, fetch_serie_info, fetch_series_categories, fetch_vod_categories,
 };
+use crate::cache::ImageCache;
 use crate::database::Database;
 use crate::models::movies::Movie;
 use eframe::egui;
-use egui::{vec2, TextBuffer};
+use egui::{cache, vec2, TextBuffer};
+use isahc::{HttpClient, ReadResponseExt};
 use rustybuzz::{Face, UnicodeBuffer};
+use std::error::Error;
+use std::io::ErrorKind;
 use std::process::{Child, Command, Stdio};
 use unicode_bidi::BidiInfo;
 
@@ -34,6 +38,7 @@ pub struct IPTVApp {
     password: String,
     authenticated: bool,
     db: Database,
+    cache: ImageCache,
     current_view: AppView,
     view_stack: Vec<AppView>,
     mpv_process: Option<Child>,
@@ -44,6 +49,7 @@ pub struct IPTVApp {
 impl IPTVApp {
     pub fn new(ctx: &egui::Context) -> Self {
         let db = Database::new("iptv_cache");
+        let cache = ImageCache::new("iptv_cache/image_cache");
         let api_url = db.get::<String>("api_url").unwrap_or_default();
         let username = db.get::<String>("username").unwrap_or_default();
         let password = db.get::<String>("password").unwrap_or_default();
@@ -58,6 +64,7 @@ impl IPTVApp {
             password,
             authenticated: false,
             db,
+            cache,
             current_view: AppView::Login,
             view_stack: vec![],
             mpv_process: None,
@@ -325,8 +332,18 @@ impl IPTVApp {
                             ui.vertical(|ui| {
                                 if !stream.stream_icon.is_empty() {
                                     // Attempt to display the image
+                                    let image_data = Self::load_or_download_image(
+                                        &self.client,
+                                        &self.cache,
+                                        &stream.stream_icon,
+                                    )
+                                    .unwrap_or_else(|e| {
+                                        log::error!("Failed to fetch image: {}", e);
+                                        vec![] // Fallback to an empty image or placeholder
+                                    });
+
                                     ui.add(
-                                        egui::Image::from_uri(&stream.stream_icon)
+                                        egui::Image::from_bytes(stream.name.clone(), image_data)
                                             .rounding(10.0)
                                             .fit_to_exact_size(vec2(150.0, 150.0)),
                                     );
@@ -397,8 +414,18 @@ impl IPTVApp {
                             ui.vertical(|ui| {
                                 if !stream.stream_icon.is_empty() {
                                     // Attempt to display the image
+                                    let image_data = Self::load_or_download_image(
+                                        &self.client,
+                                        &self.cache,
+                                        &stream.stream_icon,
+                                    )
+                                    .unwrap_or_else(|e| {
+                                        log::error!("Failed to fetch image: {}", e);
+                                        vec![] // Fallback to an empty image or placeholder
+                                    });
+
                                     ui.add(
-                                        egui::Image::from_uri(&stream.stream_icon)
+                                        egui::Image::from_bytes(stream.name.clone(), image_data)
                                             .rounding(10.0)
                                             .fit_to_exact_size(vec2(150.0, 150.0)),
                                     );
@@ -468,8 +495,18 @@ impl IPTVApp {
                             ui.vertical(|ui| {
                                 if !serie.cover.is_empty() {
                                     // Attempt to display the image
+                                    let image_data = Self::load_or_download_image(
+                                        &self.client,
+                                        &self.cache,
+                                        &serie.cover,
+                                    )
+                                    .unwrap_or_else(|e| {
+                                        log::error!("Failed to fetch image: {}", e);
+                                        vec![] // Fallback to an empty image or placeholder
+                                    });
+
                                     ui.add(
-                                        egui::Image::from_uri(&serie.cover)
+                                        egui::Image::from_bytes(serie.name.clone(), image_data)
                                             .rounding(10.0)
                                             .fit_to_exact_size(vec2(150.0, 150.0)),
                                     );
@@ -748,6 +785,35 @@ impl IPTVApp {
 
         // 4. Rejoin the segments with the separator
         processed_segments.join(" - ")
+    }
+
+    fn load_or_download_image(
+        client: &HttpClient,
+        cache: &ImageCache,
+        url: &str,
+    ) -> Result<Vec<u8>, Box<dyn Error>> {
+        if cache.is_cached(url) {
+            log::info!("Loading image from cache: {}", url);
+            return Ok(cache.load_image(url).expect("Failed to load cached image"));
+        }
+
+        log::info!("Downloading image: {}", url);
+
+        match client.get(url) {
+            Ok(mut response) => {
+                if response.status().is_success() {
+                    let image = response.bytes()?;
+                    cache.save_image(url, &image);
+                    Ok(image)
+                } else {
+                    Err(format!("Unexpected status code: {}", response.status()).into())
+                }
+            }
+            Err(err) => {
+                log::warn!("Failed to fetch image: {}", err);
+                Err(format!("Network error: {}", err).into())
+            }
+        }
     }
 }
 

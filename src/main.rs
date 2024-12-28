@@ -8,6 +8,7 @@ mod api_client;
 mod database;
 mod gui;
 mod models;
+mod cache;
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> eframe::Result {
