@@ -25,13 +25,13 @@ enum AppView {
     Login,
     Categories,
     LiveCategories,
-    LiveStreams(String), // Holds the category_id
+    LiveStreams(String, String), // Holds the category_id, category_name
     MoviesCategories,
-    MoviesStream(String),
+    MoviesStream(String, String),
     SeriesCategories,
-    SeriesList(String),               // Holds category_id
-    SeriesDetail(String, i64),        // Holds category_id, series_id
-    EpisodeList(String, i64, String), // Holds category_id, series_id and season number
+    SeriesList(String, String), // Holds category_id ,and category_name
+    SeriesDetail(String, i64, String), // Holds category_id, series_id, category_name
+    EpisodeList(String, i64, String, String), // Holds category_id, series_id, season number and category_name
     Playback(String),
     Search,
 }
@@ -202,10 +202,10 @@ impl IPTVApp {
 
     fn render_login(&mut self, ctx: &egui::Context) {
         log::info!("Rendering login view...");
-    
+
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Login to IPTV");
-    
+
             egui::Grid::new("login_grid")
                 .num_columns(2)
                 .spacing([10.0, 10.0])
@@ -213,16 +213,16 @@ impl IPTVApp {
                     ui.label("Server URL: ");
                     ui.text_edit_singleline(&mut self.api_url);
                     ui.end_row();
-    
+
                     ui.label("Username: ");
                     ui.text_edit_singleline(&mut self.username);
                     ui.end_row();
-    
+
                     ui.label("Password: ");
                     ui.text_edit_singleline(&mut self.password);
                     ui.end_row();
                 });
-    
+
             if ui.button("Login").clicked() {
                 if futures::executor::block_on(self.authenticate()) {
                     self.authenticated = true;
@@ -270,7 +270,7 @@ impl IPTVApp {
                 for category in categories {
                     let display_name = Self::preprocess_arabic_text_v1(&category.category_name);
                     if ui.button(&display_name).clicked() {
-                        self.current_view = AppView::LiveStreams(category.category_id.clone());
+                        self.current_view = AppView::LiveStreams(category.category_id.clone(), display_name.clone());
                     }
                 }
             });
@@ -295,7 +295,10 @@ impl IPTVApp {
                 for category in categories {
                     let display_name = Self::preprocess_arabic_text_v1(&category.category_name);
                     if ui.button(&display_name).clicked() {
-                        self.current_view = AppView::MoviesStream(category.category_id.clone());
+                        self.current_view = AppView::MoviesStream(
+                            category.category_id.clone(),
+                            display_name.clone(),
+                        );
                     }
                 }
             });
@@ -315,19 +318,20 @@ impl IPTVApp {
                 for category in categories {
                     let display_name = Self::preprocess_arabic_text_v1(&category.category_name);
                     if ui.button(&display_name).clicked() {
-                        self.current_view = AppView::SeriesList(category.category_id.clone());
+                        self.current_view =
+                            AppView::SeriesList(category.category_id.clone(), display_name.clone());
                     }
                 }
             });
         });
     }
 
-    fn render_live_streams(&mut self, ctx: &egui::Context, category_id: &str) {
+    fn render_live_streams(&mut self, ctx: &egui::Context, category_id: &str, category_name: &str) {
         let streams = self.db.get_live_streams(category_id);
         let cache = self.cache.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Live Streams");
+            ui.heading(category_name);
 
             if ui.button("Back").clicked() {
                 self.current_view = AppView::LiveCategories;
@@ -407,7 +411,7 @@ impl IPTVApp {
                                         "ts"
                                     );
                                     self.view_stack.push(self.current_view.clone());
-                                    self.current_view = AppView::LiveStreams(stream_url);
+                                    self.current_view = AppView::LiveStreams(stream_url, category_name.to_string());
                                 }
                             });
 
@@ -421,13 +425,19 @@ impl IPTVApp {
         });
     }
 
-    fn render_movies_streams(&mut self, ctx: &egui::Context, category_id: &str) {
-        let streams = self.db.get_movies_streams(category_id);
+    fn render_movies_streams(
+        &mut self,
+        ctx: &egui::Context,
+        category_id: &str,
+        category_name: &str,
+    ) {
+        let mut streams = self.db.get_movies_streams(category_id);
+        streams.sort_by(|a, b| b.added.cmp(&a.added));
+        log::debug!("Sroted Movies by adding date");
         let cache = self.cache.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // TODO: Change this to Category name.
-            ui.heading("Movies Streams");
+            ui.heading(category_name);
 
             if ui.button("Back").clicked() {
                 self.current_view = AppView::MoviesCategories;
@@ -473,6 +483,7 @@ impl IPTVApp {
 
                                     if !self.ongoing_requests.contains(&image_url) {
                                         // Fetch image in the background
+                                        log::info!("Fetching image in the background");
                                         self.ongoing_requests.insert(image_url.clone());
                                         let image_url_clone = image_url.clone();
                                         let cache_clone = cache.clone();
@@ -526,12 +537,12 @@ impl IPTVApp {
         });
     }
 
-    fn render_series_list(&mut self, ctx: &egui::Context, category_id: &str) {
+    fn render_series_list(&mut self, ctx: &egui::Context, category_id: &str, category_name: &str) {
         let series_list = self.db.get_serieInfo_for_all_series(category_id);
         let cache = self.cache.clone();
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Series List");
+            ui.heading(category_name);
 
             if ui.button("Back").clicked() {
                 self.current_view = AppView::SeriesCategories;
@@ -608,6 +619,7 @@ impl IPTVApp {
                                         self.current_view = AppView::SeriesDetail(
                                             serie.category_id.clone(),
                                             serie_id,
+                                            category_name.to_string(),
                                         );
                                     }
                                 }
@@ -623,8 +635,13 @@ impl IPTVApp {
         });
     }
 
-    fn render_series_detail(&mut self, ctx: &egui::Context, category_id: &str, series_id: &i64) {
-        // TODO: fetch series info when a series is selected and it's no in DB
+    fn render_series_detail(
+        &mut self,
+        ctx: &egui::Context,
+        category_id: &str,
+        series_id: &i64,
+        category_name: &str,
+    ) {
         let series_detail = self
             .db
             .get_series_info(category_id, series_id)
@@ -652,9 +669,12 @@ impl IPTVApp {
             ));
 
             if ui.button("Back").clicked() {
-                self.current_view = AppView::SeriesList(series_detail.info.category_id.clone());
+                self.current_view = AppView::SeriesList(
+                    series_detail.info.category_id.clone(),
+                    category_name.to_string(),
+                );
             }
-            // ui.label(format!("Rating: {}", series_detail.info.rating));
+
             // Convert episodes keys to a sorted vector
             // HashMap does not maintain order,so looping through them will change how they are displayed
             let mut sorted_seasons: Vec<_> = series_detail.episodes.keys().cloned().collect();
@@ -666,6 +686,7 @@ impl IPTVApp {
                             category_id.to_string(),
                             series_id.to_owned(),
                             season,
+                            category_name.to_string(),
                         );
                     }
                 }
@@ -679,6 +700,7 @@ impl IPTVApp {
         category_id: &str,
         series_id: &i64,
         season: String,
+        category_name: &str,
     ) {
         let series_detail = self
             .db
@@ -705,8 +727,11 @@ impl IPTVApp {
             ui.heading(format!("Season {} Episodes", season));
 
             if ui.button("Back").clicked() {
-                self.current_view =
-                    AppView::SeriesDetail(category_id.to_string(), series_id.to_owned());
+                self.current_view = AppView::SeriesDetail(
+                    category_id.to_string(),
+                    series_id.to_owned(),
+                    category_name.to_string(),
+                );
             }
 
             egui::ScrollArea::vertical().show(ui, |ui| {
@@ -872,69 +897,6 @@ impl IPTVApp {
         processed_segments.join(" - ")
     }
 
-    fn load_or_download_image(
-        client: &HttpClient,
-        cache: &ImageCache,
-        url: &str,
-    ) -> Result<Vec<u8>, Box<dyn Error>> {
-        if cache.is_cached(url) {
-            log::info!("Loading image from cache: {}", url);
-            return Ok(cache.load_image(url).expect("Failed to load cached image"));
-        }
-
-        log::info!("Downloading image: {}", url);
-
-        match client.get(url) {
-            Ok(mut response) => {
-                if response.status().is_success() {
-                    let image = response.bytes()?;
-                    cache.save_image(url, &image);
-                    Ok(image)
-                } else {
-                    Err(format!("Unexpected status code: {}", response.status()).into())
-                }
-            }
-            Err(err) => {
-                log::warn!("Failed to fetch image: {}", err);
-                Err(format!("Network error: {}", err).into())
-            }
-        }
-    }
-
-    async fn fetch_image(&self, image_url: String) {
-        // Check if image is already in the memory cache
-        {
-            // if cache.lock().unwrap().contains_key(&image_url) {
-            //     return; // Already cached
-            // }
-        }
-
-        // Fetch from file cache or download
-        let image_data = if self.cache.is_cached(&image_url) {
-            log::info!("Loading image from file cache: {}", image_url);
-            self.cache
-                .load_image(&image_url)
-                .expect("Failed to load cached image")
-        } else {
-            log::info!("Downloading image: {}", image_url);
-            let mut response = self
-                .client
-                .get_async(&image_url)
-                .await
-                .expect("Failed to fetch image");
-            let data = response.bytes().await;
-            let image = data.expect("Failure");
-            self.cache
-                .save_image(&image_url, &image)
-                .expect("Failed to save image to cache");
-            image
-        };
-
-        // Add to in-memory cache
-        log::info!("Adding image to cahce.");
-        // cache.lock().unwrap().insert(image_url, image_data);
-    }
-
     async fn fetch_and_cache_image(
         client: HttpClient,
         cache: ImageCache,
@@ -979,14 +941,18 @@ impl eframe::App for IPTVApp {
             AppView::LiveCategories => self.render_live_categories(ctx),
             AppView::MoviesCategories => self.render_movies_categories(ctx),
             AppView::SeriesCategories => self.render_series_categories(ctx),
-            AppView::LiveStreams(category_id) => self.render_live_streams(ctx, &category_id),
-            AppView::MoviesStream(category_id) => self.render_movies_streams(ctx, &category_id),
-            AppView::SeriesList(category_id) => self.render_series_list(ctx, &category_id),
-            AppView::SeriesDetail(category_id, series_id) => {
-                self.render_series_detail(ctx, &category_id, &series_id)
+            AppView::LiveStreams(category_id, category_name) => self.render_live_streams(ctx, &category_id, &category_name),
+            AppView::MoviesStream(category_id, category_name) => {
+                self.render_movies_streams(ctx, &category_id, &category_name)
             }
-            AppView::EpisodeList(category_id, series_id, season) => {
-                self.render_episode_list(ctx, &category_id, &series_id, season)
+            AppView::SeriesList(category_id, category_name) => {
+                self.render_series_list(ctx, &category_id, &category_name)
+            }
+            AppView::SeriesDetail(category_id, series_id, category_name) => {
+                self.render_series_detail(ctx, &category_id, &series_id, &category_name)
+            }
+            AppView::EpisodeList(category_id, series_id, season, category_name) => {
+                self.render_episode_list(ctx, &category_id, &series_id, season, &category_name)
             }
             AppView::Search => self.render_search(ctx), // Render the search view
             AppView::Playback(stream_url) => {
@@ -1005,10 +971,7 @@ fn configure_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
     fonts.font_data.insert(
         "custom_arabic".to_owned(),
-        egui::FontData::from_static(include_bytes!(
-            "../assets/Amiri-Regular.ttf"
-        ))
-        .into(),
+        egui::FontData::from_static(include_bytes!("../assets/Amiri-Regular.ttf")).into(),
     );
 
     fonts
