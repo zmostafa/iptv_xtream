@@ -11,9 +11,11 @@ use isahc::config::Configurable;
 use isahc::{AsyncReadResponseExt, HttpClient, ReadResponseExt};
 use rustybuzz::{Face, UnicodeBuffer};
 use std::error::Error;
-use std::io::ErrorKind;
+use std::io::BufRead;
+use std::io::{ErrorKind, Write};
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::Semaphore;
 use unicode_bidi::BidiInfo;
 
@@ -270,7 +272,10 @@ impl IPTVApp {
                 for category in categories {
                     let display_name = Self::preprocess_arabic_text_v1(&category.category_name);
                     if ui.button(&display_name).clicked() {
-                        self.current_view = AppView::LiveStreams(category.category_id.clone(), display_name.clone());
+                        self.current_view = AppView::LiveStreams(
+                            category.category_id.clone(),
+                            display_name.clone(),
+                        );
                     }
                 }
             });
@@ -411,7 +416,8 @@ impl IPTVApp {
                                         "ts"
                                     );
                                     self.view_stack.push(self.current_view.clone());
-                                    self.current_view = AppView::LiveStreams(stream_url, category_name.to_string());
+                                    self.current_view =
+                                        AppView::LiveStreams(stream_url, category_name.to_string());
                                 }
                             });
 
@@ -508,23 +514,61 @@ impl IPTVApp {
                                 // Display the movie name
                                 let display_name = Self::preprocess_arabic_text_v1(&stream.name);
                                 ui.label(&display_name);
+                                let stream_url = format!(
+                                    "{}/{}/{}/{}/{}.{}",
+                                    self.api_url,
+                                    "movie",
+                                    self.username,
+                                    self.password,
+                                    stream.stream_id,
+                                    stream.container_extension
+                                );
 
                                 // Add a play button
                                 if ui.button("Play").clicked() {
-                                    println!("Play stream: {}", stream.stream_id);
-                                    let stream_url = format!(
-                                        "{}/{}/{}/{}/{}.{}",
-                                        self.api_url,
-                                        "movie",
-                                        self.username,
-                                        self.password,
-                                        stream.stream_id,
-                                        stream.container_extension
-                                    );
-
                                     self.view_stack.push(self.current_view.clone());
-                                    self.current_view = AppView::Playback(stream_url);
+                                    self.play_media(&stream.stream_id, &stream_url);
                                 }
+                                let progress = Arc::new(Mutex::new(0.0));
+
+                                if ui.button("Download").clicked() {
+                                    log::debug!("Downloading Movie: {}", stream.name);
+                                    let save_path = format!(
+                                        "iptv_cache/{}.{}",
+                                        stream.stream_id, stream.container_extension
+                                    );
+                                    let db_clone = self.db.clone();
+                                    let url_clone = stream_url.clone();
+                                    let progress_clone_for_download = Arc::clone(&progress);
+                                    let stream_clone = stream.clone();
+
+                                    tokio::spawn({
+                                        async move {
+                                            if let Err(e) = Self::download_with_wget_async(
+                                                &url_clone,
+                                                &save_path,
+                                                progress_clone_for_download,
+                                            )
+                                            .await
+                                            {
+                                                log::error!("Download failed: {}", e);
+                                            } else {
+                                                log::info!("Download completed: {}", save_path);
+                                                log::info!("Saving download to database");
+                                                db_clone.save_download(
+                                                    stream_clone.stream_id.clone(),
+                                                    &save_path,
+                                                );
+                                            }
+                                        }
+                                    });
+                                }
+                                // Update progress bar in UI
+                                let progress_clone_for_ui = Arc::clone(&progress);
+                                ui.add(
+                                    egui::ProgressBar::new(*progress_clone_for_ui.lock().unwrap())
+                                        .text("Downloading..."),
+                                );
                             });
 
                             // Add a new row every 4 items (adjust as needed)
@@ -578,6 +622,7 @@ impl IPTVApp {
                                                 .rounding(10.0)
                                                 .fit_to_exact_size(vec2(150.0, 150.0)),
                                         );
+                                        ctx.request_repaint();
                                     } else {
                                         ui.label("[Error Loading Image]");
                                     }
@@ -898,6 +943,70 @@ impl IPTVApp {
         processed_segments.join(" - ")
     }
 
+    fn play_media(&mut self, stream_id: &u32, stream_url: &str) {
+        if let Some(local_path) = self.db.get_download_path(stream_id) {
+            if std::path::Path::new(&local_path).exists() {
+                self.current_view = AppView::Playback(local_path);
+                return;
+            }
+        }
+        self.current_view = AppView::Playback(stream_url.to_string());
+    }
+
+    pub async fn download_with_wget_async(
+        url: &str,
+        save_path: &str,
+        progress: Arc<Mutex<f32>>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // Spawn the wget process
+        let mut child = Command::new("wget")
+            .arg("-O")
+            .arg(save_path)
+            .arg(url)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()?;
+
+        // Capture stderr for progress updates (wget outputs progress on stderr)
+        if let Some(stderr) = child.stderr.take() {
+            let reader = std::io::BufReader::new(stderr);
+            let mut lines = reader.lines();
+
+            while let Some(line) = lines.next() {
+                // Parse progress from wget's stderr output
+                if let Some(progress_value) = Self::parse_wget_progress(&line.unwrap()) {
+                    let mut progress_guard = progress.lock().unwrap();
+                    *progress_guard = progress_value;
+                }
+
+                // log::info!("wget: {:?}", line);
+            }
+        }
+
+        // Wait for the process to finish
+        let status = child.wait()?;
+        if status.success() {
+            log::info!("Download completed successfully: {}", save_path);
+            Ok(())
+        } else {
+            Err(format!("wget failed with status: {}", status).into())
+        }
+    }
+
+    // Helper function to parse wget progress from a line of output
+    fn parse_wget_progress(line: &str) -> Option<f32> {
+        // Example wget progress line:
+        // 23% [======>                           ] 1,229,312   12.0KB/s    ETA 10s
+        if let Some(percentage) = line.split_whitespace().next() {
+            if percentage.ends_with('%') {
+                if let Ok(value) = percentage.trim_end_matches('%').parse::<f32>() {
+                    return Some(value / 100.0); // Convert to 0.0-1.0 range
+                }
+            }
+        }
+        None
+    }
+
     async fn fetch_and_cache_image(
         client: HttpClient,
         cache: ImageCache,
@@ -942,7 +1051,9 @@ impl eframe::App for IPTVApp {
             AppView::LiveCategories => self.render_live_categories(ctx),
             AppView::MoviesCategories => self.render_movies_categories(ctx),
             AppView::SeriesCategories => self.render_series_categories(ctx),
-            AppView::LiveStreams(category_id, category_name) => self.render_live_streams(ctx, &category_id, &category_name),
+            AppView::LiveStreams(category_id, category_name) => {
+                self.render_live_streams(ctx, &category_id, &category_name)
+            }
             AppView::MoviesStream(category_id, category_name) => {
                 self.render_movies_streams(ctx, &category_id, &category_name)
             }

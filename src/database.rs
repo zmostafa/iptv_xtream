@@ -194,4 +194,14 @@ impl Database {
             })
             .collect()
     }
+
+    pub fn save_download(&self, stream_id: u32, file_path: &str) {
+        let key = format!("download_{}", stream_id);
+        self.save(&key, &file_path);
+    }
+
+    pub fn get_download_path(&self, stream_id: &u32) -> Option<String> {
+        let key = format!("download_{}", stream_id);
+        self.get(&key)
+    }
 }
