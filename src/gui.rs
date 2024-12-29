@@ -405,7 +405,7 @@ impl IPTVApp {
                                 ui.label(&display_name);
 
                                 // Play button
-                                if ui.button("Play").clicked() {
+                                if ui.button("▶").clicked() {
                                     let stream_url = format!(
                                         "{}/{}/{}/{}/{}.{}",
                                         self.api_url,
@@ -524,70 +524,76 @@ impl IPTVApp {
                                     stream.container_extension
                                 );
 
-                                // Add a play button
-                                if ui.button("Play").clicked() {
-                                    self.view_stack.push(self.current_view.clone());
-                                    self.play_media(&stream.stream_id, &stream_url);
-                                }
+                                ui.horizontal(|ui| {
+                                    // Add a play button
+                                    if ui.button("▶").clicked() {
+                                        self.view_stack.push(self.current_view.clone());
+                                        self.play_media(&stream.stream_id, &stream_url);
+                                    }
 
-                                if let Some(_) = self.db.is_downloaded(&stream.stream_id) {
-                                    log::debug!("Movie is available offline");
-                                    ui.colored_label(egui::Color32::GREEN, "Available Offline");
-                                } else {
-                                    let progress = Arc::new(Mutex::new(0.0));
+                                    if let Some(_) = self.db.is_downloaded(&stream.stream_id) {
+                                        log::debug!("Movie is available offline");
+                                        ui.colored_label(egui::Color32::GREEN, "✅");
+                                    } else {
+                                        let progress = Arc::new(Mutex::new(0.0));
 
-                                    if ui.button("Download").clicked() {
-                                        log::debug!("Downloading Movie: {}", stream.name);
-                                        let save_path = format!(
-                                            "iptv_cache/{}.{}",
-                                            stream.name, stream.container_extension
-                                        );
-                                        let db_clone = self.db.clone();
-                                        let url_clone = stream_url.clone();
-                                        let progress_clone_for_download = Arc::clone(&progress);
-                                        let stream_clone = stream.clone();
+                                        if ui.button("⬇").clicked() {
+                                            log::debug!("Downloading Movie: {}", stream.name);
+                                            let save_path = format!(
+                                                "iptv_cache/{}.{}",
+                                                stream.name, stream.container_extension
+                                            );
+                                            let db_clone = self.db.clone();
+                                            let url_clone = stream_url.clone();
+                                            let progress_clone_for_download = Arc::clone(&progress);
+                                            let stream_clone = stream.clone();
 
-                                        // Add progress to active downloads
-                                        self.active_downloads
-                                            .insert(stream.stream_id.clone(), progress.clone());
-                                        let mut active_downloads_clone =
-                                            self.active_downloads.clone();
+                                            // Add progress to active downloads
+                                            self.active_downloads
+                                                .insert(stream.stream_id.clone(), progress.clone());
+                                            let mut active_downloads_clone =
+                                                self.active_downloads.clone();
 
-                                        tokio::spawn({
-                                            async move {
-                                                if let Err(e) = Self::download_with_wget_async(
-                                                    &url_clone,
-                                                    &save_path,
-                                                    progress_clone_for_download,
-                                                )
-                                                .await
-                                                {
-                                                    log::error!("Download failed: {}", e);
-                                                } else {
-                                                    log::info!("Download completed: {}", save_path);
-                                                    log::info!("Saving download to database");
-                                                    // Remove from active downloads
-                                                    active_downloads_clone
-                                                        .remove(&stream_clone.stream_id.clone());
-                                                    db_clone.save_download(
-                                                        stream_clone.stream_id.clone(),
+                                            tokio::spawn({
+                                                async move {
+                                                    if let Err(e) = Self::download_with_wget_async(
+                                                        &url_clone,
                                                         &save_path,
-                                                    );
+                                                        progress_clone_for_download,
+                                                    )
+                                                    .await
+                                                    {
+                                                        log::error!("Download failed: {}", e);
+                                                    } else {
+                                                        log::info!(
+                                                            "Download completed: {}",
+                                                            save_path
+                                                        );
+                                                        log::info!("Saving download to database");
+                                                        // Remove from active downloads
+                                                        active_downloads_clone.remove(
+                                                            &stream_clone.stream_id.clone(),
+                                                        );
+                                                        db_clone.save_download(
+                                                            stream_clone.stream_id.clone(),
+                                                            &save_path,
+                                                        );
+                                                    }
                                                 }
-                                            }
-                                        });
+                                            });
+                                        }
+                                        // Update progress bar in UI
+                                        if let Some(progress) =
+                                            self.active_downloads.get(&stream.stream_id)
+                                        {
+                                            let progress_value = *progress.lock().unwrap();
+                                            ui.add(
+                                                egui::ProgressBar::new(progress_value)
+                                                    .text("Downloading..."),
+                                            );
+                                        }
                                     }
-                                    // Update progress bar in UI
-                                    if let Some(progress) =
-                                        self.active_downloads.get(&stream.stream_id)
-                                    {
-                                        let progress_value = *progress.lock().unwrap();
-                                        ui.add(
-                                            egui::ProgressBar::new(progress_value)
-                                                .text("Downloading..."),
-                                        );
-                                    }
-                                }
+                                });
                             });
 
                             // Add a new row every 4 items (adjust as needed)
@@ -783,10 +789,8 @@ impl IPTVApp {
                 serie
             });
         // let binding = vec![];
-        let episodes = series_detail
-            .episodes
-            .get(&season.to_string()).unwrap();
-            // .unwrap_or(&binding);
+        let episodes = series_detail.episodes.get(&season.to_string()).unwrap();
+        // .unwrap_or(&binding);
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading(format!("Season {} Episodes", season));
@@ -803,7 +807,7 @@ impl IPTVApp {
                 for episode in episodes {
                     ui.horizontal(|ui| {
                         ui.label(&episode.title);
-                        
+
                         let stream_url = format!(
                             "{}/{}/{}/{}/{}.{}",
                             self.api_url,
@@ -814,19 +818,19 @@ impl IPTVApp {
                             episode.container_extension
                         );
 
-                        if ui.button("Play").clicked() {
-                            
+                        if ui.button("▶").clicked() {
                             self.view_stack.push(self.current_view.clone());
                             self.play_media(&episode.id.parse::<u32>().unwrap(), &stream_url);
                         }
 
-                        if let Some(_) = self.db.is_downloaded(&episode.id.parse::<u32>().unwrap()) {
+                        if let Some(_) = self.db.is_downloaded(&episode.id.parse::<u32>().unwrap())
+                        {
                             log::debug!("Episode is available offline");
-                            ui.colored_label(egui::Color32::GREEN, "Available Offline");
+                            ui.colored_label(egui::Color32::GREEN, "✅");
                         } else {
                             let progress = Arc::new(Mutex::new(0.0));
 
-                            if ui.button("Download").clicked() {
+                            if ui.button("⬇").clicked() {
                                 log::debug!("Downloading Episode: {}", episode.title);
                                 let save_path = format!(
                                     "iptv_cache/{}.{}",
@@ -838,10 +842,11 @@ impl IPTVApp {
                                 let episode_clone = episode.clone();
 
                                 // Add progress to active downloads
-                                self.active_downloads
-                                    .insert(episode.id.clone().parse::<u32>().unwrap(), progress.clone());
-                                let mut active_downloads_clone =
-                                    self.active_downloads.clone();
+                                self.active_downloads.insert(
+                                    episode.id.clone().parse::<u32>().unwrap(),
+                                    progress.clone(),
+                                );
+                                let mut active_downloads_clone = self.active_downloads.clone();
 
                                 tokio::spawn({
                                     async move {
@@ -857,8 +862,9 @@ impl IPTVApp {
                                             log::info!("Download completed: {}", save_path);
                                             log::info!("Saving download to database");
                                             // Remove from active downloads
-                                            active_downloads_clone
-                                                .remove(&episode_clone.id.clone().parse::<u32>().unwrap());
+                                            active_downloads_clone.remove(
+                                                &episode_clone.id.clone().parse::<u32>().unwrap(),
+                                            );
                                             db_clone.save_download(
                                                 episode_clone.id.clone().parse::<u32>().unwrap(),
                                                 &save_path,
@@ -868,13 +874,13 @@ impl IPTVApp {
                                 });
                             }
                             // Update progress bar in UI
-                            if let Some(progress) =
-                                self.active_downloads.get(&episode.id.parse::<u32>().unwrap())
+                            if let Some(progress) = self
+                                .active_downloads
+                                .get(&episode.id.parse::<u32>().unwrap())
                             {
                                 let progress_value = *progress.lock().unwrap();
                                 ui.add(
-                                    egui::ProgressBar::new(progress_value)
-                                        .text("Downloading..."),
+                                    egui::ProgressBar::new(progress_value).text("Downloading..."),
                                 );
                             }
                         }
@@ -907,7 +913,7 @@ impl IPTVApp {
                 for movie in &self.search_results {
                     ui.horizontal(|ui| {
                         ui.label(&movie.name);
-                        if ui.button("Play").clicked() {
+                        if ui.button("▶").clicked() {
                             let stream_url = format!(
                                 "{}/{}/{}/{}/{}.{}",
                                 self.api_url,
