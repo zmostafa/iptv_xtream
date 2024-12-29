@@ -34,7 +34,7 @@ pub struct AudioInfo {
     pub duration: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct EpisodeInfo {
     pub movie_image: Option<String>,
     pub plot: Option<String>,
@@ -45,7 +45,7 @@ pub struct EpisodeInfo {
     // pub audio: Option<AudioInfo>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Episode {
     pub id: String,
     pub episode_num: u32,

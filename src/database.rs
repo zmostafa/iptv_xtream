@@ -204,4 +204,9 @@ impl Database {
         let key = format!("download_{}", stream_id);
         self.get(&key)
     }
+
+    pub fn is_downloaded(&self, stream_id: &u32) -> Option<String> {
+        let key = format!("download_{}", stream_id);
+        self.get::<String>(&key)
+    }
 }

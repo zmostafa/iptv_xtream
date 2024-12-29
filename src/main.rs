@@ -18,7 +18,7 @@ async fn main() -> eframe::Result {
         run_and_return: false,
         // initial_window_size: Some([800.0, 600.0].into()),
         viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
-        // vsync: true, // Enables vertical synchronization for consistent frame rate
+        vsync: true, // Enables vertical synchronization for consistent frame rate
         ..Default::default()
     };
 
