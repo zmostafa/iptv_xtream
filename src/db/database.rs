@@ -205,6 +205,11 @@ impl Database {
         self.get(&key)
     }
 
+    pub fn remove_download_path(&self, stream_id: &u32) -> Option<String> {
+        let key = format!("download_{}", stream_id);
+        self.db.remove(&key).ok().flatten().and_then(|v| serde_json::from_slice(&v).ok())
+    }
+
     pub fn is_downloaded(&self, stream_id: &u32) -> Option<String> {
         let key = format!("download_{}", stream_id);
         self.get::<String>(&key)

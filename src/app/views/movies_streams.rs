@@ -104,9 +104,28 @@ pub fn render_movies_streams(
                                     utils::play_media(app, &stream.stream_id, &stream_url);
                                 }
 
-                                if let Some(_) = app.db.is_downloaded(&stream.stream_id) {
+                                if let Some(download_path) = app.db.is_downloaded(&stream.stream_id) {
                                     log::debug!("Movie is available offline");
                                     ui.colored_label(egui::Color32::GREEN, "✅");
+                                    // Add a remove button
+                                    if ui.button("🗑").clicked() {
+                                        // Remove the downloaded episode
+                                        if let Err(err) = utils::remove_downloaded_episode(
+                                            app,
+                                            &stream.stream_id,
+                                            &download_path,
+                                        ) {
+                                            log::error!(
+                                                "Failed to remove downloaded movie: {}",
+                                                err
+                                            );
+                                        } else {
+                                            log::info!(
+                                                "Downloaded episode removed: {}",
+                                                stream.name
+                                            );
+                                        }
+                                    }
                                 } else {
                                     let progress = Arc::new(Mutex::new(0.0));
 

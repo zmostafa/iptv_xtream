@@ -10,6 +10,7 @@ use std::io::BufRead;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 use unicode_bidi::BidiInfo;
+use std::{fs, io};
 
 pub fn configure_fonts(ctx: &egui::Context) {
     log::info!("Configuring fonts.");
@@ -204,4 +205,14 @@ pub async fn fetch_and_cache_image(
         }
         Err(err) => Err(format!("Failed to fetch image: {}", err)),
     }
+}
+
+pub fn remove_downloaded_episode(app: &mut IPTVApp, episode_id: &u32, download_path: &str) -> io::Result<()> {
+    // Delete the file from the file system
+    fs::remove_file(download_path)?;
+
+    // Remove the episode's entry from the database
+    app.db.remove_download_path(episode_id);
+
+    Ok(())
 }
