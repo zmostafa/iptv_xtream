@@ -1,0 +1,25 @@
+mod categories;
+mod live_categories;
+mod live_streams;
+mod login;
+mod movies_categories;
+mod movies_streams;
+mod playback;
+mod search;
+mod serie_episodes;
+mod series_categories;
+mod series_details;
+mod series_list;
+
+pub use categories::render_categories;
+pub use live_categories::render_live_categories;
+pub use live_streams::render_live_streams;
+pub use login::render_login;
+pub use movies_categories::render_movies_categories;
+pub use movies_streams::render_movies_streams;
+pub use playback::render_playback;
+pub use search::render_search;
+pub use serie_episodes::render_episodes_list;
+pub use series_categories::render_series_categories;
+pub use series_details::render_series_details;
+pub use series_list::render_series_list;

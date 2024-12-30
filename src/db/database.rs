@@ -170,7 +170,7 @@ impl Database {
             .collect()
     }
 
-    pub fn save_serieInfo_for_all_series(&self, category_id: &str, serie: &SeriesInfo) {
+    pub fn save_serie_info_for_all_series(&self, category_id: &str, serie: &SeriesInfo) {
         let key = format!("serie_{}_{:?}", category_id, serie.series_id);
         let serialized = bincode::serialize(serie).expect("Failed to serialize movie");
         self.db
@@ -179,7 +179,7 @@ impl Database {
         log::info!("Saved movie {} under category {}", serie.name, category_id);
     }
 
-    pub fn get_serieInfo_for_all_series(&self, category_id: &str) -> Vec<SeriesInfo> {
+    pub fn get_serie_info_for_all_series(&self, category_id: &str) -> Vec<SeriesInfo> {
         log::info!("[DB] Get Series Streams for category {}", category_id);
         let prefix = format!("serie_{}_", category_id);
 

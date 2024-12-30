@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize, Serializer, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Category {

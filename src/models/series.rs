@@ -77,15 +77,15 @@ pub struct SeriesInfo {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Season {
-    pub air_date: Option<String>,          // Nullable or missing field, use Option
-    pub episode_count: u32,               // Integer value
-    pub id: u32,                          // Integer value
-    pub name: String,                     // String
-    pub overview: String,                 // String
-    pub season_number: u32,               // Integer value
-    pub vote_average: f64,                // Floating point value
-    pub cover: Option<String>,            // Nullable or missing field, use Option
-    pub cover_big: Option<String>,        // Nullable or missing field, use Option
+    pub air_date: Option<String>,  // Nullable or missing field, use Option
+    pub episode_count: u32,        // Integer value
+    pub id: u32,                   // Integer value
+    pub name: String,              // String
+    pub overview: String,          // String
+    pub season_number: u32,        // Integer value
+    pub vote_average: f64,         // Floating point value
+    pub cover: Option<String>,     // Nullable or missing field, use Option
+    pub cover_big: Option<String>, // Nullable or missing field, use Option
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Series {

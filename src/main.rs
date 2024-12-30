@@ -1,13 +1,10 @@
-use eframe::NativeOptions;
-use crate::gui::IPTVApp;
-use log::{debug, error, log_enabled, info, Level};
-use egui_extras;
-
-mod api_client;
-mod database;
-mod gui;
+mod api;
+mod app;
+mod db;
 mod models;
-mod cache;
+mod utils;
+
+use app::state::IPTVApp;
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> eframe::Result {
@@ -18,7 +15,7 @@ async fn main() -> eframe::Result {
         run_and_return: false,
         // initial_window_size: Some([800.0, 600.0].into()),
         viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
-        renderer: eframe::Renderer::Wgpu,
+        // renderer: eframe::Renderer::Wgpu,
         vsync: true, // Enables vertical synchronization for consistent frame rate
         ..Default::default()
     };
@@ -28,6 +25,7 @@ async fn main() -> eframe::Result {
         options,
         Box::new(|_cc| {
             egui_extras::install_image_loaders(&_cc.egui_ctx);
-            Ok(Box::new(IPTVApp::new(&_cc.egui_ctx)))}),
+            Ok(Box::new(IPTVApp::new(&_cc.egui_ctx)))
+        }),
     )
 }
