@@ -58,28 +58,16 @@ pub fn render_episodes_list(
                     );
 
                     if ui.button("▶").clicked() {
-                        // Reset continuous watching state if the user manually selects an episode
-                        app.current_episode_id = None;
-                        app.current_episode_index = None;
                         app.view_stack.push(app.current_view.clone());
+                        app.db.save_watched(&episode.id.parse::<u32>().unwrap());
                         utils::play_media(app, &episode.id.parse::<u32>().unwrap(), &stream_url);
-
-                        // Set the currently playing episode and its index
-                        app.current_episode_id = Some(episode.id.parse::<u32>().unwrap());
-                        app.current_episode_index = Some(
-                            episodes
-                                .iter()
-                                .position(|e| e.id == episode.id)
-                                .unwrap_or(0),
-                        );
-                        app.current_season_episodes = episodes.clone(); // Store the current season's episodes
                     }
 
                     if let Some(download_path) =
                         app.db.is_downloaded(&episode.id.parse::<u32>().unwrap())
                     {
                         log::debug!("Episode is available offline");
-                        ui.colored_label(egui::Color32::GREEN, "✅");
+                        // ui.colored_label(egui::Color32::GREEN, "✅");
 
                         // Add a remove button
                         if ui.button("🗑").clicked() {
@@ -149,6 +137,12 @@ pub fn render_episodes_list(
                             ui.add(egui::ProgressBar::new(progress_value).text("Downloading..."));
                         }
                     }
+                    if app.db.is_watched(&episode.id.parse::<u32>().unwrap()).is_some() {
+                        log::debug!("Episode is watched");
+                        ui.colored_label(egui::Color32::GREEN, "✅");
+                        // ui.label("👀");
+                    }
+
                 });
             }
         });

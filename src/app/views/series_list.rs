@@ -57,9 +57,8 @@ pub fn render_series_list(
                                 }
                             } else {
                                 // Placeholder for loading
+                                ui.spinner();
                                 log::info!("Image not found in cache {}, downloading", image_url);
-                                ui.label("[Loading...]");
-
                                 if !app.ongoing_requests.contains(&image_url) {
                                     app.ongoing_requests.insert(image_url.clone());
                                     // Fetch image in the background
@@ -85,7 +84,6 @@ pub fn render_series_list(
 
                             // Display the serie name
                             let display_name = utils::preprocess_arabic_text_v1(&serie.name);
-                            ui.label(&display_name);
                             if ui.button(&display_name).clicked() {
                                 if let Some(serie_id) = serie.series_id {
                                     app.current_view = AppView::SeriesDetail(

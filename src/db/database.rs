@@ -214,4 +214,14 @@ impl Database {
         let key = format!("download_{}", stream_id);
         self.get::<String>(&key)
     }
+
+    pub fn save_watched(&self, stream_id: &u32) {
+        let key = format!("watched_{}", stream_id);
+        self.save(&key, &true);
+    }
+
+    pub fn is_watched(&self, stream_id: &u32) -> Option<bool> {
+        let key = format!("watched_{}", stream_id);
+        self.get::<bool>(&key)
+    }
 }
