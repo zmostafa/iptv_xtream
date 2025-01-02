@@ -6,6 +6,7 @@ use eframe::egui;
 
 pub fn render_movies_categories(app: &mut IPTVApp, ctx: &egui::Context) {
     let categories = app.db.get_movies_categories();
+    app.movies_cache.clear();
 
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.heading("Movies Categories");

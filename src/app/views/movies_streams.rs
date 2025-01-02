@@ -12,9 +12,12 @@ pub fn render_movies_streams(
     category_id: &str,
     category_name: &str,
 ) {
-    let mut streams = app.db.get_movies_streams(category_id);
-    streams.sort_by(|a, b| b.added.cmp(&a.added));
-    log::debug!("Sroted Movies by adding date");
+    if app.movies_cache.is_empty() {
+        app.movies_cache = app.db.get_movies_streams(category_id);
+        log::debug!("Sroted Movies by adding date");
+        app.movies_cache.sort_by(|a, b| b.added.cmp(&a.added));
+    }
+    let streams = app.movies_cache.clone();
     let cache = app.image_cache.clone();
 
     egui::CentralPanel::default().show(ctx, |ui| {
@@ -104,7 +107,8 @@ pub fn render_movies_streams(
                                     utils::play_media(app, &stream.stream_id, &stream_url);
                                 }
 
-                                if let Some(download_path) = app.db.is_downloaded(&stream.stream_id) {
+                                if let Some(download_path) = app.db.is_downloaded(&stream.stream_id)
+                                {
                                     log::debug!("Movie is available offline");
                                     ui.colored_label(egui::Color32::GREEN, "✅");
                                     // Add a remove button

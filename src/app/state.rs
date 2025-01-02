@@ -53,6 +53,7 @@ pub struct IPTVApp {
     pub search_query: String,
     pub movies_search_results: Vec<Movie>,
     pub series_search_results: Vec<SeriesInfo>,
+    pub movies_cache: Vec<Movie>,
 }
 
 impl IPTVApp {
@@ -87,6 +88,7 @@ impl IPTVApp {
             search_query: String::new(),
             movies_search_results: vec![],
             series_search_results: vec![],
+            movies_cache: vec![],
         }
     }
 
@@ -264,6 +266,7 @@ impl Clone for IPTVApp {
             search_query: self.search_query.clone(),
             movies_search_results: self.movies_search_results.clone(),
             series_search_results: self.series_search_results.clone(),
+            movies_cache: self.movies_cache.clone(),
         }
     }
 }
