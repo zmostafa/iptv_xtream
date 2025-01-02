@@ -5,6 +5,8 @@ pub fn render_categories(app: &mut IPTVApp, ctx: &egui::Context) {
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.heading("Categories");
 
+        app.view_stack.push(app.current_view.clone());
+
         if ui.button("Live Streams").clicked() {
             app.current_view = AppView::LiveCategories;
         }
@@ -14,7 +16,6 @@ pub fn render_categories(app: &mut IPTVApp, ctx: &egui::Context) {
         }
 
         if ui.button("Series Streams").clicked() {
-            app.view_stack.push(app.current_view.clone());
             app.current_view = AppView::SeriesCategories;
         }
 
