@@ -59,7 +59,7 @@ pub struct Episode {
 pub struct SeriesInfo {
     pub num: Option<i64>,
     pub name: String,
-    pub series_id: Option<i64>,
+    pub series_id: i64,
     pub cover: String,
     pub plot: String,
     pub cast: String,
@@ -73,6 +73,24 @@ pub struct SeriesInfo {
     pub youtube_trailer: String,
     pub episode_run_time: String,
     pub category_id: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Serie {
+    pub category_id: String,
+    pub name: String,
+    pub cover: String,
+    pub plot: String,
+    pub cast: String,
+    pub director: String,
+    pub genre: String,
+    pub releaseDate: String,
+    pub last_modified: String,
+    pub youtube_trailer: String,
+    pub episode_run_time: String,
+    pub rating: String,
+    pub rating_5based: f32,
+    pub backdrop_path: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -90,7 +108,7 @@ pub struct Season {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Series {
     pub seasons: Vec<Season>,
-    pub info: SeriesInfo,
+    pub info: Serie,
     pub episodes: HashMap<String, Vec<Episode>>, // Map of seasons to episodes
 }
 

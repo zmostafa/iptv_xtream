@@ -180,7 +180,7 @@ impl Database {
     }
 
     pub fn save_serie_info_for_all_series(&self, category_id: &str, serie: &SeriesInfo) {
-        let key = format!("serie_{}_{:?}", category_id, serie.series_id);
+        let key = format!("serie_{}_{}", category_id, serie.series_id);
         let serialized = bincode::serialize(serie).expect("Failed to serialize movie");
         self.db
             .insert(key, serialized)
@@ -207,7 +207,7 @@ impl Database {
 
     pub fn get_serie_info_for_serie(&self, category_id: &str, serie_id: &i64) -> Option<SeriesInfo> {
         log::info!("[DB] Get Serie info for  {} {}", category_id, serie_id);
-        let key = format!("serie{}_{}", category_id, serie_id);
+        let key = format!("serie_{}_{}", category_id, serie_id);
         log::info!("Key: {}", key);
         let sirie = self.db
             .get(&key)
@@ -326,7 +326,7 @@ impl Database {
         let recently_wathced_movies = self.get_recently_watched_series_helper();
         recently_wathced_movies
             .iter()
-            .flat_map(|serie: &RecentlyWatchedSerie| self.get_serie_info_for_all_series(&serie.category_id))
+            .flat_map(|serie: &RecentlyWatchedSerie| self.get_serie_info_for_serie(&serie.category_id, &serie.id))
             .collect()
     }
     

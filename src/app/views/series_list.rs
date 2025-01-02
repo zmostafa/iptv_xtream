@@ -86,7 +86,7 @@ pub fn render_series_list(
                             // Display the serie name
                             let display_name = utils::preprocess_arabic_text_v1(&serie.name);
                             if ui.button(&display_name).clicked() {
-                                if let Some(serie_id) = serie.series_id {
+                                if let serie_id = serie.series_id {
                                     app.view_stack.push(app.current_view.clone());
                                     app.current_view = AppView::SeriesDetail(
                                         serie.category_id.clone(),
