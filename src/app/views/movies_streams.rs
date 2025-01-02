@@ -24,7 +24,8 @@ pub fn render_movies_streams(
         ui.heading(category_name);
 
         if ui.button("Back").clicked() {
-            app.current_view = AppView::MoviesCategories;
+            let view = app.view_stack.pop().unwrap();
+            app.current_view = view;
         }
 
         ui.separator();

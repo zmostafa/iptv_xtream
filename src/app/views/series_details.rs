@@ -37,10 +37,8 @@ pub fn render_series_details(
         ));
 
         if ui.button("Back").clicked() {
-            app.current_view = AppView::SeriesList(
-                series_detail.info.category_id.clone(),
-                category_name.to_string(),
-            );
+            let view = app.view_stack.pop().unwrap();
+            app.current_view = view;
         }
 
         // Convert episodes keys to a sorted vector
@@ -50,6 +48,7 @@ pub fn render_series_details(
         egui::ScrollArea::vertical().show(ui, |ui| {
             for season in sorted_seasons {
                 if ui.button(format!("Season {}", season)).clicked() {
+                    app.view_stack.push(app.current_view.clone());
                     app.current_view = AppView::EpisodeList(
                         category_id.to_string(),
                         series_id.to_owned(),

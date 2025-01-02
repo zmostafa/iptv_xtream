@@ -19,7 +19,8 @@ pub fn render_series_list(
         ui.heading(category_name);
 
         if ui.button("Back").clicked() {
-            app.current_view = AppView::SeriesCategories;
+            let view = app.view_stack.pop().unwrap_or(AppView::Categories);
+            app.current_view = view;
         }
 
         ui.separator();
@@ -86,6 +87,7 @@ pub fn render_series_list(
                             let display_name = utils::preprocess_arabic_text_v1(&serie.name);
                             if ui.button(&display_name).clicked() {
                                 if let Some(serie_id) = serie.series_id {
+                                    app.view_stack.push(app.current_view.clone());
                                     app.current_view = AppView::SeriesDetail(
                                         serie.category_id.clone(),
                                         serie_id,

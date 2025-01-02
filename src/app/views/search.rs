@@ -20,7 +20,8 @@ pub fn render_movies_search(app: &mut IPTVApp, ctx: &egui::Context) {
         }
 
         if ui.button("Back").clicked() {
-            app.current_view = AppView::MoviesCategories;
+            let view = app.view_stack.pop().unwrap();
+            app.current_view = view;
         }
 
         ui.separator();
@@ -231,7 +232,9 @@ pub fn render_series_search(app: &mut IPTVApp, ctx: &egui::Context) {
         }
 
         if ui.button("Back").clicked() {
-            app.current_view = AppView::SeriesCategories;
+            // app.current_view = AppView::SeriesCategories;
+            let view = app.view_stack.pop().unwrap();
+            app.current_view = view;
         }
 
         ui.separator();

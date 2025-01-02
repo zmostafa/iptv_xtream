@@ -35,11 +35,8 @@ pub fn render_episodes_list(
         ui.heading(format!("Season {} Episodes", season));
 
         if ui.button("Back").clicked() {
-            app.current_view = AppView::SeriesDetail(
-                category_id.to_string(),
-                series_id.to_owned(),
-                category_name.to_string(),
-            );
+            let view = app.view_stack.pop().unwrap();
+            app.current_view = view;
         }
 
         egui::ScrollArea::vertical().show(ui, |ui| {
