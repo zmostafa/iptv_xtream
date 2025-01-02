@@ -6,22 +6,15 @@ use eframe::egui;
 use egui::vec2;
 use std::sync::{Arc, Mutex};
 
-pub fn render_movies_streams(
-    app: &mut IPTVApp,
-    ctx: &egui::Context,
-    category_id: &str,
-    category_name: &str,
-) {
+pub fn render_recently_watched_movies(app: &mut IPTVApp, ctx: &egui::Context) {
     if app.movies_cache.is_empty() {
-        app.movies_cache = app.db.get_movies_streams(category_id);
-        log::debug!("Sroted Movies by adding date");
-        app.movies_cache.sort_by(|a, b| b.added.cmp(&a.added));
+        app.movies_cache = app.db.get_recently_watched_movies();
     }
+
     let streams = app.movies_cache.clone();
     let cache = app.image_cache.clone();
-
     egui::CentralPanel::default().show(ctx, |ui| {
-        ui.heading(category_name);
+        ui.heading("Recently Watched Movies");
 
         if ui.button("Back").clicked() {
             let view = app.view_stack.pop().unwrap();
@@ -105,7 +98,6 @@ pub fn render_movies_streams(
                                 // Add a play button
                                 if ui.button("▶").clicked() {
                                     app.view_stack.push(app.current_view.clone());
-                                    log::info!("Saving movie to recently watched");
                                     app.db.save_recently_watched_movie(
                                         &stream.category_id,
                                         &stream.stream_id,

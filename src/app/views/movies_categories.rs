@@ -16,6 +16,11 @@ pub fn render_movies_categories(app: &mut IPTVApp, ctx: &egui::Context) {
             app.current_view = AppView::MoviesSearch;
         }
 
+        if ui.button("Recently watched movies").clicked() {
+            app.view_stack.push(app.current_view.clone());
+            app.current_view = AppView::RecentlyWatchedMovies;
+        }
+
         if ui.button("Back").clicked() {
             let view = app.view_stack.pop().unwrap();
             app.current_view = view;

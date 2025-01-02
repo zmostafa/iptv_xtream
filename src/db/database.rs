@@ -1,5 +1,5 @@
 use crate::models::live::{Category, LiveStream};
-use crate::models::movies::Movie;
+use crate::models::movies::{Movie, RecentlyWatchedMovie};
 use crate::models::series::{Series, SeriesInfo};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -170,6 +170,15 @@ impl Database {
             .collect()
     }
 
+    pub fn get_individual_movie(&self, category_id: &str, stream_id: &u32) -> Option<Movie> {
+        let key = format!("movie_{}_{}", category_id, stream_id);
+        self.db
+            .get(&key)
+            .ok()
+            .flatten()
+            .and_then(|v| bincode::deserialize(&v).ok())
+    }
+
     pub fn save_serie_info_for_all_series(&self, category_id: &str, serie: &SeriesInfo) {
         let key = format!("serie_{}_{:?}", category_id, serie.series_id);
         let serialized = bincode::serialize(serie).expect("Failed to serialize movie");
@@ -207,7 +216,11 @@ impl Database {
 
     pub fn remove_download_path(&self, stream_id: &u32) -> Option<String> {
         let key = format!("download_{}", stream_id);
-        self.db.remove(&key).ok().flatten().and_then(|v| serde_json::from_slice(&v).ok())
+        self.db
+            .remove(&key)
+            .ok()
+            .flatten()
+            .and_then(|v| serde_json::from_slice(&v).ok())
     }
 
     pub fn is_downloaded(&self, stream_id: &u32) -> Option<String> {
@@ -223,5 +236,44 @@ impl Database {
     pub fn is_watched(&self, stream_id: &u32) -> Option<bool> {
         let key = format!("watched_{}", stream_id);
         self.get::<bool>(&key)
+    }
+
+    pub fn save_recently_watched_movie(&self, category_id: &str, stream_id: &u32) {
+        log::info!("[DB] Save Recently Watched Movie.");
+        let key = format!("recently_watched_movie_{}_{}", category_id, stream_id);
+        let serialized = bincode::serialize(&RecentlyWatchedMovie {
+            category_id: category_id.to_string(),
+            stream_id: *stream_id,
+        })
+        .expect("Failed to serialize stream id");
+        self.db
+            .insert(key, serialized)
+            .expect("Failed to save recently watched movie");
+    }
+
+    pub fn get_recently_watched_movies_helper(&self) -> Vec<RecentlyWatchedMovie> {
+        // log::info!("[DB] Get Recently Watched Movies.");
+        let prefix = format!("recently_watched_movie_");
+
+        self.db
+            .scan_prefix(prefix)
+            .filter_map(|item| {
+                if let Ok((_, value)) = item {
+                    bincode::deserialize::<RecentlyWatchedMovie>(&value).ok()
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn get_recently_watched_movies(&self) -> Vec<Movie> {
+        log::info!("[DB] Get Recently Watched Movies.");
+        let recently_wathced_movies = self.get_recently_watched_movies_helper();
+        recently_wathced_movies
+            .iter()
+            .filter_map(|movie| self.get_individual_movie(&movie.category_id, &movie.stream_id))
+            .collect()
+
     }
 }

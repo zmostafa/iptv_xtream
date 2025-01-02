@@ -14,12 +14,22 @@ pub fn render_playback(app: &mut IPTVApp, ui: &mut egui::Ui, stream_url: String)
     ui.heading("Now Playing:");
     ui.label(format!("Stream URL: {}", stream_url));
 
+    // Socket path
+    let temp_dir = std::env::current_dir().unwrap().join("iptv_cache");
+    let socket_path = temp_dir.join("mpvsocket");
+
     if app.mpv_process.is_none() {
         app.mpv_process = Some(
             Command::new("mpv")
                 .arg(&stream_url)
                 .arg("--no-terminal")
                 .arg("--force-window=yes")
+                .arg(format!(
+                    "--input-ipc-server={}",
+                    socket_path.to_string_lossy()
+                ))
+                .arg("--resume-playback")
+                .arg("--save-position-on-quit")
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()
@@ -29,7 +39,8 @@ pub fn render_playback(app: &mut IPTVApp, ui: &mut egui::Ui, stream_url: String)
 
     if ui.button("Stop").clicked() {
         if let Some(mut process) = app.mpv_process.take() {
-            let _ = process.kill();
+            // let _ = process.kill();
+            let _ = futures::executor::block_on(send_quit_command(&socket_path.to_string_lossy()));
             if let Err(e) = process.wait() {
                 log::error!("Failed to wait for the process: {}", e);
             }
@@ -87,6 +98,8 @@ pub async fn render_playlist(app: &mut IPTVApp, ui: &mut egui::Ui, playlist: &[S
                     "--input-ipc-server={}",
                     socket_path.to_string_lossy()
                 ))
+                .arg("--resume-playback")
+                .arg("--save-position-on-quit")
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()
@@ -151,6 +164,36 @@ use serde_json::Value;
 use std::error::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
+
+async fn send_quit_command(
+    socket_path: &str,
+) -> Result<Option<String>, Box<dyn Error + Send + Sync>> {
+    // Connect to the mpv IPC socket
+    let mut stream = match UnixStream::connect(socket_path).await {
+        Ok(stream) => stream,
+        Err(e) => {
+            log::error!("Failed to connect to MPV socket: {}", e);
+            return Ok(None);
+        }
+    };
+
+    // Create the JSON quit command
+    let quit_command = json!({
+        "command": ["quit"]
+    });
+
+    // Send the command to mpv
+    stream
+        .write_all(quit_command.to_string().as_bytes())
+        .await?;
+    stream.write_all(b"\n").await?;
+
+    // Wait for a response (optional)
+    let mut buffer = [0; 1024];
+    stream.read(&mut buffer).await?;
+    println!("MPV response: {}", String::from_utf8_lossy(&buffer));
+    Ok(Some("Quit command sent".to_string()))
+}
 
 async fn get_currently_playing_episode(
     ipc_socket_path: &str,

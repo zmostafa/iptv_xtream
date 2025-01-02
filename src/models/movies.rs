@@ -58,3 +58,9 @@ impl<'de> Deserialize<'de> for StringOrFloat {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RecentlyWatchedMovie {
+    pub category_id: String,
+    pub stream_id: u32,
+}
