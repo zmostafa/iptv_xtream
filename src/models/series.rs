@@ -51,7 +51,7 @@ pub struct Episode {
     pub episode_num: u32,
     pub title: String,
     pub container_extension: String,
-    pub info: EpisodeInfo,
+    // pub info: EpisodeInfo,
     pub season: u32,
 }
 
