@@ -43,7 +43,7 @@ pub fn render_episodes_list(
         }
 
         egui::ScrollArea::vertical().show(ui, |ui| {
-            for episode in episodes {
+            for (index, episode) in episodes.iter().enumerate() {
                 ui.horizontal(|ui| {
                     ui.label(&episode.title);
 
@@ -60,7 +60,26 @@ pub fn render_episodes_list(
                     if ui.button("▶").clicked() {
                         app.view_stack.push(app.current_view.clone());
                         app.db.save_watched(&episode.id.parse::<u32>().unwrap());
-                        utils::play_media(app, &episode.id.parse::<u32>().unwrap(), &stream_url);
+                        // Create a playlist starting from the clicked episode
+                        let playlist: Vec<String> = episodes[index..]
+                            .iter()
+                            .map(|ep| {
+                                format!(
+                                    "{}/{}/{}/{}/{}.{}",
+                                    app.api_url,
+                                    "series",
+                                    app.username,
+                                    app.password,
+                                    ep.id,
+                                    ep.container_extension
+                                )
+                            })
+                            .collect();
+
+                        // Play the playlist
+                        app.current_view = AppView::PlaylsitPlayback(playlist);
+                        // utils::play_playlist(app, &playlist);
+                        // utils::play_media(app, &episode.id.parse::<u32>().unwrap(), &stream_url);
                     }
 
                     if let Some(download_path) =
@@ -137,12 +156,15 @@ pub fn render_episodes_list(
                             ui.add(egui::ProgressBar::new(progress_value).text("Downloading..."));
                         }
                     }
-                    if app.db.is_watched(&episode.id.parse::<u32>().unwrap()).is_some() {
+                    if app
+                        .db
+                        .is_watched(&episode.id.parse::<u32>().unwrap())
+                        .is_some()
+                    {
                         log::debug!("Episode is watched");
                         ui.colored_label(egui::Color32::GREEN, "✅");
                         // ui.label("👀");
                     }
-
                 });
             }
         });

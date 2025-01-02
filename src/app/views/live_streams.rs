@@ -44,22 +44,21 @@ pub fn render_live_streams(
                                     ui.add(
                                         egui::Image::from_bytes(stream.name.clone(), image_data)
                                             .rounding(10.0)
-                                            .fit_to_exact_size(vec2(150.0, 150.0)),
+                                            .fit_to_exact_size(egui::vec2(150.0, 150.0)),
                                     );
                                 } else {
                                     ui.label("[Error Loading Image]");
                                 }
                             } else {
                                 // Placeholder for loading
-                                ui.label("[Loading...]");
-
+                                ui.spinner();
                                 if !app.ongoing_requests.contains(&image_url) {
                                     app.ongoing_requests.insert(image_url.clone());
                                     // Fetch image in the background
                                     let image_url_clone = image_url.clone();
                                     let cache_clone = cache.clone();
                                     let client_clone = app.client.clone();
-                                    let ctx_clone = ctx.clone();
+                                    // let ctx_clone = ctx.clone();
 
                                     tokio::spawn(async move {
                                         if let Err(err) = utils::fetch_and_cache_image(
@@ -71,7 +70,7 @@ pub fn render_live_streams(
                                         {
                                             log::error!("Failed to fetch image: {}", err);
                                         }
-                                        ctx_clone.request_repaint(); // Update UI
+                                        // ctx_clone.request_repaint(); // Update UI
                                     });
                                 }
                             }

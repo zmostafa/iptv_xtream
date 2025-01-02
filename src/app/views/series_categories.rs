@@ -9,6 +9,9 @@ pub fn render_series_categories(app: &mut IPTVApp, ctx: &egui::Context) {
 
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.heading("Series Categories");
+        if ui.button("Search Series").clicked() {
+            app.current_view = AppView::SeriesSearch;
+        }
         if ui.button("Back").clicked() {
             app.current_view = AppView::Categories;
         }

@@ -57,7 +57,7 @@ pub fn render_movies_streams(
                                 }
                             } else {
                                 // Placeholder for loading
-                                ui.label("[Loading...]");
+                                ui.spinner();
 
                                 if !app.ongoing_requests.contains(&image_url) {
                                     // Fetch image in the background

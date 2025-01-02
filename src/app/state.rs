@@ -4,12 +4,14 @@ use crate::api::{
 };
 use crate::app::views::{
     render_categories, render_episodes_list, render_live_categories, render_live_streams,
-    render_login, render_movies_categories, render_movies_streams, render_playback, render_search,
-    render_series_categories, render_series_details, render_series_list,
+    render_login, render_movies_categories, render_movies_search, render_movies_streams,
+    render_playback, render_playlist, render_series_categories, render_series_details,
+    render_series_list, render_series_search,
 };
 use crate::db::{Database, ImageCache};
-use crate::models::Movie;
+use crate::models::{Movie, SeriesInfo};
 use crate::utils;
+use derivative::Derivative; // Import the Derivative derive macro
 use isahc::config::Configurable;
 use isahc::HttpClient;
 use std::collections::{HashMap, HashSet};
@@ -30,7 +32,9 @@ pub enum AppView {
     SeriesDetail(String, i64, String),
     EpisodeList(String, i64, String, String),
     Playback(String),
-    Search,
+    PlaylsitPlayback(Vec<String>),
+    MoviesSearch,
+    SeriesSearch,
 }
 
 pub struct IPTVApp {
@@ -47,7 +51,8 @@ pub struct IPTVApp {
     pub view_stack: Vec<AppView>,
     pub mpv_process: Option<Child>,
     pub search_query: String,
-    pub search_results: Vec<Movie>,
+    pub movies_search_results: Vec<Movie>,
+    pub series_search_results: Vec<SeriesInfo>,
 }
 
 impl IPTVApp {
@@ -80,7 +85,8 @@ impl IPTVApp {
             view_stack: vec![],
             mpv_process: None,
             search_query: String::new(),
-            search_results: vec![],
+            movies_search_results: vec![],
+            series_search_results: vec![],
         }
     }
 
@@ -224,12 +230,40 @@ impl eframe::App for IPTVApp {
             AppView::EpisodeList(category_id, series_id, season, category_name) => {
                 render_episodes_list(self, ctx, &category_id, &series_id, season, &category_name)
             }
-            AppView::Search => render_search(self, ctx), // Render the search view
+            AppView::MoviesSearch => render_movies_search(self, ctx), // Render the search view
+            AppView::SeriesSearch => render_series_search(self, ctx), // Render the search view
             AppView::Playback(stream_url) => {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     render_playback(self, ui, stream_url.clone());
                 });
             }
+            AppView::PlaylsitPlayback(playlist) => {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    futures::executor::block_on(render_playlist(self, ui, &playlist));
+                });
+            }
+        }
+    }
+}
+
+impl Clone for IPTVApp {
+    fn clone(&self) -> Self {
+        IPTVApp {
+            active_downloads: self.active_downloads.clone(),
+            ongoing_requests: self.ongoing_requests.clone(),
+            client: self.client.clone(),
+            api_url: self.api_url.clone(),
+            username: self.username.clone(),
+            password: self.password.clone(),
+            authenticated: self.authenticated,
+            db: self.db.clone(),
+            image_cache: self.image_cache.clone(),
+            current_view: self.current_view.clone(),
+            view_stack: self.view_stack.clone(),
+            mpv_process: None,
+            search_query: self.search_query.clone(),
+            movies_search_results: self.movies_search_results.clone(),
+            series_search_results: self.series_search_results.clone(),
         }
     }
 }

@@ -1,6 +1,7 @@
 use crate::app::{AppView, IPTVApp};
 use crate::db::ImageCache;
 use crate::models::Movie;
+use crate::models::SeriesInfo;
 use arabic_reshaper::arabic_reshape;
 use egui::FontFamily::{Monospace, Proportional};
 use egui::TextBuffer;
@@ -9,8 +10,8 @@ use rustybuzz::{Face, UnicodeBuffer};
 use std::io::BufRead;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
-use unicode_bidi::BidiInfo;
 use std::{fs, io};
+use unicode_bidi::BidiInfo;
 
 pub fn configure_fonts(ctx: &egui::Context) {
     log::info!("Configuring fonts.");
@@ -46,6 +47,20 @@ pub fn search_movies(app: &IPTVApp, query: &str) -> Vec<Movie> {
     all_movies
         .into_iter()
         .filter(|movie| movie.name.to_lowercase().contains(&query.to_lowercase()))
+        .collect()
+}
+
+pub fn search_series(app: &IPTVApp, query: &str) -> Vec<SeriesInfo> {
+    let all_series = app
+        .db
+        .get_series_categories()
+        .iter()
+        .flat_map(|category| app.db.get_serie_info_for_all_series(&category.category_id))
+        .collect::<Vec<_>>();
+
+    all_series
+        .into_iter()
+        .filter(|serie| serie.name.to_lowercase().contains(&query.to_lowercase()))
         .collect()
 }
 
@@ -207,7 +222,11 @@ pub async fn fetch_and_cache_image(
     }
 }
 
-pub fn remove_downloaded_episode(app: &mut IPTVApp, episode_id: &u32, download_path: &str) -> io::Result<()> {
+pub fn remove_downloaded_episode(
+    app: &mut IPTVApp,
+    episode_id: &u32,
+    download_path: &str,
+) -> io::Result<()> {
     // Delete the file from the file system
     fs::remove_file(download_path)?;
 

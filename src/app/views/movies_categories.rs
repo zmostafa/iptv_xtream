@@ -11,7 +11,7 @@ pub fn render_movies_categories(app: &mut IPTVApp, ctx: &egui::Context) {
         ui.heading("Movies Categories");
 
         if ui.button("Search Movies").clicked() {
-            app.current_view = AppView::Search;
+            app.current_view = AppView::MoviesSearch;
         }
 
         if ui.button("Back").clicked() {
