@@ -11,6 +11,7 @@ mod series_categories;
 mod series_details;
 mod series_list;
 mod recently_watched_movies;
+mod recently_watched_series;
 
 pub use categories::render_categories;
 pub use live_categories::render_live_categories;
@@ -25,3 +26,4 @@ pub use series_categories::render_series_categories;
 pub use series_details::render_series_details;
 pub use series_list::render_series_list;
 pub use recently_watched_movies::render_recently_watched_movies;
+pub use recently_watched_series::render_recently_watched_series;

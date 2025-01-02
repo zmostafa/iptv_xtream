@@ -57,6 +57,7 @@ pub fn render_episodes_list(
                     if ui.button("▶").clicked() {
                         app.view_stack.push(app.current_view.clone());
                         app.db.save_watched(&episode.id.parse::<u32>().unwrap());
+                        app.db.save_recently_watched_serie(category_id, &series_id);
                         // Create a playlist starting from the clicked episode
                         let playlist: Vec<String> = episodes[index..]
                             .iter()

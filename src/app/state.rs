@@ -6,7 +6,7 @@ use crate::app::views::{
     render_categories, render_episodes_list, render_live_categories, render_live_streams,
     render_login, render_movies_categories, render_movies_search, render_movies_streams,
     render_playback, render_playlist, render_recently_watched_movies, render_series_categories,
-    render_series_details, render_series_list, render_series_search,
+    render_series_details, render_series_list, render_series_search, render_recently_watched_series,
 };
 use crate::db::{Database, ImageCache};
 use crate::models::{Movie, SeriesInfo};
@@ -35,6 +35,7 @@ pub enum AppView {
     MoviesSearch,
     SeriesSearch,
     RecentlyWatchedMovies,
+    RecentlyWatchedSeries,
 }
 
 pub struct IPTVApp {
@@ -54,6 +55,7 @@ pub struct IPTVApp {
     pub movies_search_results: Vec<Movie>,
     pub series_search_results: Vec<SeriesInfo>,
     pub movies_cache: Vec<Movie>,
+    pub series_cache: Vec<SeriesInfo>,
 }
 
 impl IPTVApp {
@@ -89,6 +91,7 @@ impl IPTVApp {
             movies_search_results: vec![],
             series_search_results: vec![],
             movies_cache: vec![],
+            series_cache: vec![],
         }
     }
 
@@ -247,6 +250,9 @@ impl eframe::App for IPTVApp {
             AppView::RecentlyWatchedMovies => {
                 render_recently_watched_movies(self, ctx);
             }
+            AppView::RecentlyWatchedSeries => {
+                render_recently_watched_series(self, ctx);
+            }
         }
     }
 }
@@ -270,6 +276,7 @@ impl Clone for IPTVApp {
             movies_search_results: self.movies_search_results.clone(),
             series_search_results: self.series_search_results.clone(),
             movies_cache: self.movies_cache.clone(),
+            series_cache: self.series_cache.clone(),
         }
     }
 }

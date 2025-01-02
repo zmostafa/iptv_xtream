@@ -93,3 +93,9 @@ pub struct Series {
     pub info: SeriesInfo,
     pub episodes: HashMap<String, Vec<Episode>>, // Map of seasons to episodes
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RecentlyWatchedSerie {
+    pub category_id: String,
+    pub id: i64,
+}
