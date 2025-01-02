@@ -147,7 +147,7 @@ pub async fn render_playlist(app: &mut IPTVApp, ui: &mut egui::Ui, playlist: &[S
     if ui.button("Stop").clicked() {
         if let Some(mut process) = app.mpv_process.take() {
             // let _ = process.kill();
-            let _ = futures::executor::block_on(send_quit_command(&socket_path.to_string_lossy()));
+            let _ = send_quit_command(&socket_path.to_string_lossy()).await;
             if let Err(e) = process.wait() {
                 log::error!("Failed to wait for the process: {}", e);
             }
