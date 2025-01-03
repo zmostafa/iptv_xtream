@@ -15,9 +15,11 @@ use crate::utils;
 use isahc::config::Configurable;
 use isahc::HttpClient;
 use std::collections::{HashMap, HashSet};
+use std::env::current_dir;
 use std::process::Child;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use egui_extras::RetainedImage;
 
 #[derive(Clone, Debug)]
 pub enum AppView {
@@ -57,6 +59,7 @@ pub struct IPTVApp {
     pub series_search_results: Vec<SeriesInfo>,
     pub movies_cache: Vec<Movie>,
     pub series_cache: Vec<SeriesInfo>,
+    pub background: RetainedImage,
 }
 
 impl IPTVApp {
@@ -66,7 +69,11 @@ impl IPTVApp {
         let api_url = db.get::<String>("api_url").unwrap_or_default();
         let username = db.get::<String>("username").unwrap_or_default();
         let password = db.get::<String>("password").unwrap_or_default();
-
+        let background_image = RetainedImage::from_color_image(
+            "background",
+            utils::load_image_from_file(current_dir().unwrap().join("assets/background.jpg")).unwrap(),
+        );
+    
         // Set fonts
         utils::configure_fonts(_ctx);
 
@@ -93,6 +100,7 @@ impl IPTVApp {
             series_search_results: vec![],
             movies_cache: vec![],
             series_cache: vec![],
+            background: background_image,
         }
     }
 
@@ -278,6 +286,10 @@ impl Clone for IPTVApp {
             series_search_results: self.series_search_results.clone(),
             movies_cache: self.movies_cache.clone(),
             series_cache: self.series_cache.clone(),
+            background: RetainedImage::from_color_image(
+                "background",
+                utils::load_image_from_file("../../assets/background.jpg").unwrap(),
+            ),
         }
     }
 }

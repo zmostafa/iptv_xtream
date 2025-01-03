@@ -235,3 +235,15 @@ pub fn remove_downloaded_episode(
 
     Ok(())
 }
+
+use egui::ColorImage;
+use image::ImageReader;
+use std::path::Path;
+
+pub fn load_image_from_file(path: impl AsRef<Path>) -> Result<ColorImage, image::ImageError> {
+    let image = ImageReader::open(path)?.decode()?;
+    let size = [image.width() as usize, image.height() as usize];
+    let image_buffer = image.to_rgba8();
+    let pixels = image_buffer.as_flat_samples();
+    Ok(ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()))
+}
