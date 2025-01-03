@@ -103,6 +103,10 @@ pub fn render_movies_search(app: &mut IPTVApp, ctx: &egui::Context) {
                                 // Add a play button
                                 if ui.button("▶").clicked() {
                                     app.view_stack.push(app.current_view.clone());
+                                    app.db.save_recently_watched_movie(
+                                        &stream.category_id,
+                                        &stream.stream_id,
+                                    );
                                     utils::play_media(app, &stream.stream_id, &stream_url);
                                 }
 
