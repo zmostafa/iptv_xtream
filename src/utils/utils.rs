@@ -79,7 +79,7 @@ pub fn preprocess_arabic_text_v2(input: &str) -> String {
     let segments: Vec<&str> = input.split('-').collect();
 
     // 2. Load the font for shaping Arabic text
-    let font_data = include_bytes!("/home/zmostafa/github/xtream/assets/Amiri-Regular.ttf");
+    let font_data = include_bytes!("../../assets/Amiri-Regular.ttf");
     let face = Face::from_slice(font_data, 0).expect("Failed to create Rustybuzz Face");
 
     // 3. Process each segment
