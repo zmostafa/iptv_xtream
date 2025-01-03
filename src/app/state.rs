@@ -5,8 +5,9 @@ use crate::api::{
 use crate::app::views::{
     render_categories, render_episodes_list, render_live_categories, render_live_streams,
     render_login, render_movies_categories, render_movies_search, render_movies_streams,
-    render_playback, render_playlist, render_recently_watched_movies, render_series_categories,
-    render_series_details, render_series_list, render_series_search, render_recently_watched_series,
+    render_playback, render_playlist, render_recently_watched_movies,
+    render_recently_watched_series, render_series_categories, render_series_details,
+    render_series_list, render_series_search,
 };
 use crate::db::{Database, ImageCache};
 use crate::models::{Movie, SeriesInfo};
