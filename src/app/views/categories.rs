@@ -27,15 +27,13 @@ pub fn render_categories(app: &mut IPTVApp, ctx: &egui::Context) {
         let current_dir = std::env::current_dir().unwrap();
         log::info!("Current dir: {:?}", current_dir);
 
-        let img = egui_extras::image::load_svg_bytes_with_size(
-            std::include_bytes!("/home/zmostafa/github/xtream/assets/movies.svg"),
+        let movie_icon = egui_extras::image::load_svg_bytes_with_size(
+            &std::fs::read(current_dir.join("assets/movies.svg")).expect("Failed to read movie icon"),
             Some(egui::SizeHint::Size(150, 150)),
         );
-        match img {
-            Ok(i) => {
-                ui.label("Image loaded successfully");
-                let texture = ctx.load_texture("icon", i, Default::default());
-                // ui.image(&texture);
+        match movie_icon {
+            Ok(icon) => {
+                let texture = ctx.load_texture("icon", icon, Default::default());
                 if ui.add(egui::ImageButton::new( &texture)).clicked() {
                     app.current_view = AppView::MoviesCategories;
                 }
