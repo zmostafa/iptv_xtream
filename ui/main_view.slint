@@ -1,6 +1,8 @@
 import { VerticalBox, HorizontalBox, Button } from "std-widgets.slint";
 import { DemoPalette, Page } from "common.slint";
-import { SettingsPage, PrinterSettings } from "./settings.slint";
+import { SettingsPage } from "./settings.slint";
+
+import "../assets/Amiri-Regular.ttf";
 
 component SideBarIcon inherits Rectangle {
     in-out property <bool> active;
@@ -39,7 +41,7 @@ export component CategoriesView inherits Window {
     min-width: 800px;
     min-height: 600px;
     background: DemoPalette.primary;
-    // default-font-family: "Noto Sans";
+    default-font-family: "Amiri";
     default-font-size: DemoPalette.base-font-size;
 
     callback fetch-data();
@@ -86,8 +88,8 @@ export component CategoriesView inherits Window {
                 }
 
                 SettingsPage {
-                    property <int> pageNumber: 1;
-                    y: calcPageY(1);
+                    property <int> pageNumber: 5;
+                    y: calcPageY(5);
                     opacity: root.active-page == pageNumber ? 1 : 0;
                     animate y {
                         duration: page-animation-duration;

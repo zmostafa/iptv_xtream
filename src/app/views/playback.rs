@@ -1,6 +1,7 @@
 use crate::app;
 use crate::app::state::IPTVApp;
 use eframe::egui;
+use tokio::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
@@ -55,6 +56,9 @@ pub fn create_playlist_file(playlist: &[String]) -> Result<PathBuf, std::io::Err
     // Create a temporary file
     let temp_dir = std::env::current_dir().unwrap().join("iptv_cache");
     let playlist_path = temp_dir.join("playlist.txt");
+    if playlist_path.is_file() {
+        let _ = fs::remove_file(playlist_path.clone());
+    }
 
     // Write the playlist URLs to the file
     let mut file = File::create(&playlist_path)?;
@@ -86,6 +90,9 @@ pub async fn render_playlist(app: &mut IPTVApp, ui: &mut egui::Ui, playlist: &[S
     // Query the currently playing episode
     let temp_dir = std::env::current_dir().unwrap().join("iptv_cache");
     let socket_path = temp_dir.join("mpvsocket");
+    if socket_path.is_file() {
+        let _ = std::fs::remove_file(socket_path.clone());
+    }
 
     // Start mpv with the playlist file
     if app.mpv_process.is_none() {
