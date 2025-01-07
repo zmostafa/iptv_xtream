@@ -1,6 +1,7 @@
 import { VerticalBox, HorizontalBox, Button } from "std-widgets.slint";
 import { DemoPalette, Page } from "common.slint";
 import { SettingsPage } from "./settings.slint";
+import { CategoriesView } from "./categories_view.slint";
 
 import "../assets/Amiri-Regular.ttf";
 
@@ -34,12 +35,13 @@ component SideBarIcon inherits Rectangle {
     }
 }
 
-export component CategoriesView inherits Window {
+export component MainView inherits Window {
     out property <int> active-page: 0;
     callback quit();
 
     min-width: 800px;
     min-height: 600px;
+    title: "Xtream";
     background: DemoPalette.primary;
     default-font-family: "Amiri";
     default-font-size: DemoPalette.base-font-size;
@@ -73,10 +75,57 @@ export component CategoriesView inherits Window {
 
                 property <duration> page-animation-duration: 250ms;
 
-                home-page := SettingsPage {
+                home-page := CategoriesView {
+                    header: "Live TV";
                     property <int> pageNumber: 0;
                     y: calcPageY(0);
-                    opacity: root.active-page == 0 ? 1 : 0;
+                    opacity: root.active-page == pageNumber ? 1 : 0;
+                    animate y {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                    animate opacity {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                }
+
+                movies:= CategoriesView {
+                    header: "Movies - افلام";
+                    property <int> pageNumber: 1;
+                    y: calcPageY(1);
+                    opacity: root.active-page == pageNumber ? 1 : 0;
+                    animate y {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                    animate opacity {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                }
+
+                CategoriesView {
+                    header: "Series - مسلسلات";
+                    property <int> pageNumber: 2;
+                    y: calcPageY(pageNumber);
+                    opacity: root.active-page == pageNumber ? 1 : 0;
+                    animate y {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                    animate opacity {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                }
+
+                Page {
+                    header: "Update Content";
+                    // page number is matching the y index in the position for the icon
+                    property <int> pageNumber: 4;
+                    y: calcPageY(pageNumber);
+                    opacity: root.active-page == pageNumber ? 1 : 0;
                     animate y {
                         duration: page-animation-duration;
                         easing: ease-out-quad;
@@ -88,8 +137,9 @@ export component CategoriesView inherits Window {
                 }
 
                 SettingsPage {
+                    // page number is matching the y index in the position for the icon
                     property <int> pageNumber: 5;
-                    y: calcPageY(5);
+                    y: calcPageY(pageNumber);
                     opacity: root.active-page == pageNumber ? 1 : 0;
                     animate y {
                         duration: page-animation-duration;
