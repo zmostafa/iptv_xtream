@@ -5,10 +5,14 @@ IPTV Player written in Rust
 
 [] Fix fetching content
 
-[] Fetch content only when required.
+[x] Fetch content only when required.
 
-[] Add caching
+[x] Add caching
 
 [] Model gui on Series Troxide, but Arabic support using iced is not guranteed. 
 
-[] Add downloading content
+[x] Add downloading content
+
+[] use libmpv to integrate player in egui
+
+[] port gui to slint -- supports arabic
