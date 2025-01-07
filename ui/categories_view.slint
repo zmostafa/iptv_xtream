@@ -1,0 +1,172 @@
+import { VerticalBox, HorizontalBox, Button } from "std-widgets.slint";
+import { DemoPalette, Page } from "common.slint";
+import { SettingsPage, PrinterSettings } from "./settings.slint";
+
+component SideBarIcon inherits Rectangle {
+    in-out property <bool> active;
+    in-out property <image> icon <=> i.source;
+
+    callback activate;
+    width: DemoPalette.side-bar-width;
+    height: 72px;
+
+    Rectangle {
+        x: DemoPalette.side-bar-margin;
+        GridLayout {
+            padding: 0px;
+            @children
+        }
+
+        i := Image {
+            colorize: root.active ? DemoPalette.active-page-icon-color : DemoPalette.inactive-page-icon-color;
+            animate colorize { duration: 125ms; }
+            width: 30px;
+            height: 30px;
+        }
+    }
+
+    TouchArea {
+        clicked => {
+            root.activate();
+        }
+    }
+}
+
+export component CategoriesView inherits Window {
+    out property <int> active-page: 0;
+    callback quit();
+
+    min-width: 800px;
+    min-height: 600px;
+    background: DemoPalette.primary;
+    // default-font-family: "Noto Sans";
+    default-font-size: DemoPalette.base-font-size;
+
+    callback fetch-data();
+    callback open-movies();
+    callback open-series();
+    callback open-live-tv();
+
+    HorizontalLayout {
+        padding: 10px;
+        padding-left: 67px;
+
+        main-view := Rectangle {
+            height: 100%;
+            border-radius: 30px;
+            background: DemoPalette.background;
+            Rectangle {
+                clip: true;
+                x: main-view.border-radius / 2;
+                y: main-view.border-radius / 2;
+                width: main-view.width - main-view.border-radius;
+                height: main-view.height - main-view.border-radius;
+
+                function calcPageY(pageNumber: int) -> length {
+                    if (root.active-page == pageNumber) {
+                        return 0;
+                    }
+                    return root.active-page < pageNumber ? - self.height / 2 : parent.height / 2;
+                }
+
+                property <duration> page-animation-duration: 250ms;
+
+                home-page := SettingsPage {
+                    property <int> pageNumber: 0;
+                    y: calcPageY(0);
+                    opacity: root.active-page == 0 ? 1 : 0;
+                    animate y {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                    animate opacity {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                }
+
+                SettingsPage {
+                    property <int> pageNumber: 1;
+                    y: calcPageY(1);
+                    opacity: root.active-page == pageNumber ? 1 : 0;
+                    animate y {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                    animate opacity {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                }
+            }
+        }
+    }
+
+    sidebar := Rectangle {
+        function icon-y(index: int) -> length {
+            return 100px // top padding
+                + index * 72px;
+        }
+        x: 0px;
+        width: DemoPalette.side-bar-width;
+
+        Image {
+            x: parent.width - self.width + 1px; // workaround pixel gap
+            y: sidebar.icon-y(root.active-page) - self.width / 2;
+            source: @image-url("../assets/page_selection.svg");
+            colorize: DemoPalette.background;
+            animate y { duration: 125ms; }
+        }
+
+            VerticalLayout {
+                y: 82px;
+
+                for page-icon[idx] in [
+                    @image-url("../assets/tv-icon.svg"),
+                    @image-url("../assets/movies-icon.svg"),
+                    @image-url("../assets/series-icon.svg"),
+                ]: SideBarIcon {
+                    activate => {
+                        root.active-page = idx;
+                    }
+                    icon: page-icon;
+                    active: root.active-page == idx;
+                }
+            }
+
+            Rectangle {
+                y: sidebar.icon-y(3) + 17px;
+                x: DemoPalette.side-bar-margin + 8px;
+                background: DemoPalette.background;
+                height: 2px;
+                width: 37px;
+            }
+
+            SideBarIcon {
+                activate => {
+                    root.active-page = 4;
+                }
+
+                y: sidebar.icon-y(4);
+                x: 16px;
+                height: 35px;
+                width: 30px;
+                icon:  @image-url("../assets/update-icon.svg");
+                active: root.active-page == 4;
+            }
+
+            SideBarIcon {
+                activate => {
+                    root.active-page = 5;
+                }
+
+                y: sidebar.icon-y(5);
+                x: 16px;
+                height: 35px;
+                width: 30px;
+                icon: @image-url("../assets/settings.svg");
+                active: root.active-page == 5;
+            }
+            
+    }
+}
