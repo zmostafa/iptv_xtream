@@ -1,17 +1,21 @@
 slint::include_modules!();
 mod api;
+mod db;
 mod models;
 
-use isahc::HttpClient;
+use crate::api::authenticate;
+use crate::db::{Database, ImageCache};
+use async_compat::Compat;
 use isahc::config::Configurable;
+use isahc::HttpClient;
 use std::sync::Arc;
 use std::time::Duration;
-use async_compat::Compat;
-use crate::api::authenticate;
 
 struct App {
     main_view: MainView,
     client: Arc<HttpClient>, // Wrap the client in an Arc
+    db: Arc<Database>,
+    image_cache: Arc<ImageCache>,
 }
 
 impl App {
@@ -26,23 +30,43 @@ impl App {
                 .unwrap(),
         );
 
+        let db = Arc::new(Database::new("iptv_cache"));
+        let image_cache = Arc::new(ImageCache::new("iptv_cache/image_cache"));
+
+        let saved_url = db.get::<String>("api_url").unwrap_or_default();
+        let saved_username = db.get::<String>("username").unwrap_or_default();
+        let saved_password = db.get::<String>("password").unwrap_or_default();
+
+        main_view.set_url(saved_url.into());
+        main_view.set_username(saved_username.into());
+        main_view.set_password(saved_password.into());
+
         // Disable other icons in the app until login
         main_view.set_sidebar_enabled(false);
         // Start with the login screen (page 6)
         main_view.set_active_page(6);
 
-        Self { main_view, client }
+        Self {
+            main_view,
+            client,
+            db,
+            image_cache,
+        }
     }
 
     fn run(&self) {
         let main_view_weak = self.main_view.as_weak();
         let client = Arc::clone(&self.client); // Clone the Arc
+        let db = Arc::clone(&self.db);
+        let image_cache = Arc::clone(&self.image_cache);
         log::info!("MainView UI created");
 
         // Handle login
         self.main_view.on_login(move |url, username, password| {
             // let main_view = main_view_weak.unwrap();
             let client = Arc::clone(&client); // Clone the Arc for the async task
+            let db = Arc::clone(&db);
+            let image_cache = Arc::clone(&image_cache);
 
             if !url.is_empty() && !username.is_empty() && !password.is_empty() {
                 // Clone the data to ensure it has a 'static lifetime
@@ -56,12 +80,16 @@ impl App {
                     match authenticate(&client, &url, &username, &password).await {
                         Ok(_) => {
                             log::info!("Login successful!");
+                            db.save("api_url", &url);
+                            db.save("username", &username);
+                            db.save("password", &password);
 
                             // Update the UI on the main thread
                             slint::invoke_from_event_loop(move || {
                                 let main_view = main_view_weak_clone.unwrap();
                                 main_view.set_sidebar_enabled(true);
                                 main_view.set_active_page(0);
+                                // TODO: disable login view after login.
                             })
                             .unwrap();
                         }

@@ -40,6 +40,10 @@ export component MainView inherits Window {
     in-out property <int> active-page: 6;
     in-out property <bool> sidebar-enabled: false; // Add this line
 
+    in-out property <string> url: "";
+    in-out property <string> username: "";
+    in-out property <string> password: "";
+
     callback quit();
 
     min-width: 800px;
@@ -168,6 +172,11 @@ export component MainView inherits Window {
                         duration: page-animation-duration;
                         easing: ease-out-quad;
                     }
+
+                    // Bind the properties to the MainView's properties
+                    url <=> root.url;
+                    username <=> root.username;
+                    password <=> root.password;
 
                     // Forward the login event to MainView with the data
                     login(url, username, password) => {
