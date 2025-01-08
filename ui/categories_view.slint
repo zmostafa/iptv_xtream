@@ -1,11 +1,17 @@
 import { DemoPalette, Page, PushButton } from "common.slint";
 
+export struct Category {
+    category_id: string,
+    category_name: string,
+    parent_id: int,
+}
+
 export component CategoriesView inherits Page {
     // header: "Categories";
     // has-back-button: true;
 
-    in-out property <[string]> categories;
-    callback on_category_selected(string);
+    in-out property <[Category]> categories;
+    callback on_category_selected(Category);
 
     Flickable {
         width: parent.width;
@@ -14,7 +20,7 @@ export component CategoriesView inherits Page {
         VerticalLayout {
             spacing: 16px;
             for category in root.categories: PushButton {
-                text: category;
+                text: category.category_name;
                 primary: false;
                 clicked => { root.on_category_selected(category); }
             }
