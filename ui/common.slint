@@ -96,7 +96,7 @@ export component Page inherits Rectangle {
 
     if (root.has-back-button) : Image {
         x:0;
-        source: @image-url("images/back.svg");
+        source: @image-url("../assets/back.svg");
         image-fit: contain;
         colorize: DemoPalette.control-secondary;
         y: h.y + (h.height - self.height) / 2;
@@ -177,7 +177,7 @@ export component SpinBox inherits Rectangle {
             }
 
             width: root.height - parent.padding * 2;
-            img: @image-url("images/minus.svg");
+            // img: @image-url("images/minus.svg");
         }
 
         Rectangle {
@@ -203,7 +203,7 @@ export component SpinBox inherits Rectangle {
             }
 
             width: root.height - parent.padding * 2;
-            img: @image-url("images/plus.svg");
+            // img: @image-url("images/plus.svg");
         }
     }
 }
@@ -230,7 +230,7 @@ export component ComboBox inherits Rectangle {
     }
 
     i := Image {
-        source: @image-url("images/down.svg");
+        // source: @image-url("images/down.svg");
         colorize: DemoPalette.control-secondary;
         height: 40%;
         width: self.height;
@@ -307,7 +307,7 @@ export component CheckBox inherits Rectangle {
             clicked => { root.checked = !root.checked; }
 
             width: root.height - parent.padding * 2;
-            img: root.checked ? @image-url("images/check.svg") : @image-url("");
+            // img: root.checked ? @image-url("images/check.svg") : @image-url("");
         }
 
         Text {

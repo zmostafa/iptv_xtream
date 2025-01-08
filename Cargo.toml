@@ -2,6 +2,8 @@
 name = "xtream"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
+
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -25,3 +27,7 @@ isahc = "1.7.2"
 sha2 = "0.10.8"
 derivative = "2.2.0"
 regex = "1.11.1"
+slint = "1.9.1"
+
+[build-dependencies]
+slint-build = "1.9.1"

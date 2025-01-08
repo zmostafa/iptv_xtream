@@ -1,0 +1,71 @@
+import { VerticalBox, HorizontalBox, Button, LineEdit } from "std-widgets.slint";
+import { Page } from "./common.slint";
+export component LoginView inherits Page {
+    // always-on-top: false;
+    // height: 600px;
+    // width: 800px;
+
+    Image {
+        source: @image-url("../assets/background.jpg");
+        image-fit: fill;
+        width: 100%;
+        height: 100%;
+    }
+
+    in-out property <string> url: "";
+    in-out property <string> username: "";
+    in-out property <string> password: "";
+    callback login();
+
+    VerticalBox {
+        padding: 20px;
+        spacing: 20px;
+
+        LineEdit {
+            placeholder-text: "Enter URL";
+            text <=> url;
+            height: 50px;
+            padding: 10px;
+            // border-radius: 5px;
+            // border-width: 1px;
+            // border-color: #ccc;
+        }
+
+        LineEdit {
+            placeholder-text: "Enter Username";
+            text <=> username;
+            height: 50px;
+            padding: 10px;
+            // border-radius: 5px;
+            // border-width: 1px;
+            // border-color: #ccc;
+        }
+
+        LineEdit {
+            placeholder-text: "Enter Password";
+            input-type: InputType.password;
+            text <=> password;
+            height: 50px;
+            padding: 10px;
+            // border-radius: 5px;
+            // border-width: 1px;
+            // border-color: #ccc;
+        }
+
+        HorizontalBox {
+            alignment: LayoutAlignment.center;
+
+            Button {
+                text: "Login";
+                clicked => {
+                    root.login();
+                }
+                height: 50px;
+                width: 150px;
+                // background: #6284FF;
+                // color: white;
+                // border-radius: 5px;
+            }
+        }
+    }
+}

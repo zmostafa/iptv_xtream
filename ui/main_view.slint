@@ -4,6 +4,7 @@ import { SettingsPage } from "./settings.slint";
 import { CategoriesView } from "./categories_view.slint";
 
 import "../assets/Amiri-Regular.ttf";
+import { LoginView } from "login_view.slint";
 
 component SideBarIcon inherits Rectangle {
     in-out property <bool> active;
@@ -36,7 +37,7 @@ component SideBarIcon inherits Rectangle {
 }
 
 export component MainView inherits Window {
-    out property <int> active-page: 0;
+    in-out property <int> active-page: 6;
     callback quit();
 
     min-width: 800px;
@@ -50,6 +51,7 @@ export component MainView inherits Window {
     callback open-movies();
     callback open-series();
     callback open-live-tv();
+    callback login(string, string, string); // Add this line
 
     HorizontalLayout {
         padding: 10px;
@@ -150,6 +152,21 @@ export component MainView inherits Window {
                         easing: ease-out-quad;
                     }
                 }
+
+                LoginView {
+                    // page number is matching the y index in the position for the icon
+                    property <int> pageNumber: 6;
+                    y: calcPageY(pageNumber);
+                    opacity: root.active-page == pageNumber ? 1 : 0;
+                    animate y {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                    animate opacity {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                }
             }
         }
     }
@@ -218,6 +235,19 @@ export component MainView inherits Window {
                 width: 30px;
                 icon: @image-url("../assets/settings.svg");
                 active: root.active-page == 5;
+            }
+
+            SideBarIcon {
+                activate => {
+                    root.active-page = 6;
+                }
+
+                y: sidebar.icon-y(6);
+                x: 16px;
+                height: 35px;
+                width: 30px;
+                icon: @image-url("../assets/login-icon.svg");
+                active: root.active-page == 6;
             }
             
     }
