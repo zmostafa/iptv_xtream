@@ -23,12 +23,13 @@ impl App {
 
             // Simulate login validation
             if !username.is_empty() && !password.is_empty() {
-                println!("Login successful!");
+                log::info!("Login successful!");
 
                 // Switch to the home page (page 0) after successful login
+                main_view.set_sidebar_enabled(true);
                 main_view.set_active_page(0);
             } else {
-                println!("Login failed: Username and password cannot be empty.");
+                log::error!("Login failed: Username and password cannot be empty.");
             }
         });
 
@@ -38,6 +39,7 @@ impl App {
 }
 
 fn main() {
+    env_logger::init();
     let app = App::new();
     app.run();
 }

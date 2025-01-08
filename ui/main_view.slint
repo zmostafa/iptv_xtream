@@ -38,6 +38,8 @@ component SideBarIcon inherits Rectangle {
 
 export component MainView inherits Window {
     in-out property <int> active-page: 6;
+    in-out property <bool> sidebar-enabled: false; // Add this line
+
     callback quit();
 
     min-width: 800px;
@@ -92,7 +94,7 @@ export component MainView inherits Window {
                     }
                 }
 
-                movies:= CategoriesView {
+                movies := CategoriesView {
                     header: "Movies - افلام";
                     property <int> pageNumber: 1;
                     y: calcPageY(1);
@@ -166,6 +168,11 @@ export component MainView inherits Window {
                         duration: page-animation-duration;
                         easing: ease-out-quad;
                     }
+
+                    // Forward the login event to MainView with the data
+                    login(url, username, password) => {
+                        root.login(url, username, password);
+                    }
                 }
             }
         }
@@ -187,68 +194,73 @@ export component MainView inherits Window {
             animate y { duration: 125ms; }
         }
 
-            VerticalLayout {
-                y: 82px;
+        VerticalLayout {
+            y: 82px;
 
-                for page-icon[idx] in [
-                    @image-url("../assets/tv-icon.svg"),
-                    @image-url("../assets/movies-icon.svg"),
-                    @image-url("../assets/series-icon.svg"),
-                ]: SideBarIcon {
-                    activate => {
+            for page-icon[idx] in [
+                @image-url("../assets/tv-icon.svg"),
+                @image-url("../assets/movies-icon.svg"),
+                @image-url("../assets/series-icon.svg"),
+            ]: SideBarIcon {
+                activate => {
+                    if root.sidebar-enabled {
                         root.active-page = idx;
                     }
-                    icon: page-icon;
-                    active: root.active-page == idx;
                 }
+                icon: page-icon;
+                active: root.active-page == idx;
             }
+        }
 
-            Rectangle {
-                y: sidebar.icon-y(3) + 17px;
-                x: DemoPalette.side-bar-margin + 8px;
-                background: DemoPalette.background;
-                height: 2px;
-                width: 37px;
-            }
+        Rectangle {
+            y: sidebar.icon-y(3) + 17px;
+            x: DemoPalette.side-bar-margin + 8px;
+            background: DemoPalette.background;
+            height: 2px;
+            width: 37px;
+        }
 
-            SideBarIcon {
-                activate => {
+        SideBarIcon {
+            activate => {
+                if root.sidebar-enabled {
                     root.active-page = 4;
                 }
-
-                y: sidebar.icon-y(4);
-                x: 16px;
-                height: 35px;
-                width: 30px;
-                icon:  @image-url("../assets/update-icon.svg");
-                active: root.active-page == 4;
             }
 
-            SideBarIcon {
-                activate => {
+            y: sidebar.icon-y(4);
+            x: 16px;
+            height: 35px;
+            width: 30px;
+            icon: @image-url("../assets/update-icon.svg");
+            active: root.active-page == 4;
+        }
+
+        SideBarIcon {
+            activate => {
+                if root.sidebar-enabled {
                     root.active-page = 5;
                 }
-
-                y: sidebar.icon-y(5);
-                x: 16px;
-                height: 35px;
-                width: 30px;
-                icon: @image-url("../assets/settings.svg");
-                active: root.active-page == 5;
             }
 
-            SideBarIcon {
-                activate => {
-                    root.active-page = 6;
-                }
+            y: sidebar.icon-y(5);
+            x: 16px;
+            height: 35px;
+            width: 30px;
+            icon: @image-url("../assets/settings.svg");
+            active: root.active-page == 5;
+        }
 
-                y: sidebar.icon-y(6);
-                x: 16px;
-                height: 35px;
-                width: 30px;
-                icon: @image-url("../assets/login-icon.svg");
-                active: root.active-page == 6;
+        SideBarIcon {
+            activate => {
+                root.active-page = 6;
             }
-            
+
+            y: sidebar.icon-y(6);
+            x: 16px;
+            height: 35px;
+            width: 30px;
+            icon: @image-url("../assets/login-icon.svg");
+            active: root.active-page == 6;
+        }
     }
 }

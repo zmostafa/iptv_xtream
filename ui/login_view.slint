@@ -15,7 +15,7 @@ export component LoginView inherits Page {
     in-out property <string> url: "";
     in-out property <string> username: "";
     in-out property <string> password: "";
-    callback login();
+    callback login(string, string, string);
 
     VerticalBox {
         padding: 20px;
@@ -58,7 +58,7 @@ export component LoginView inherits Page {
             Button {
                 text: "Login";
                 clicked => {
-                    root.login();
+                    login(root.url, root.username, root.password); // Pass the data
                 }
                 height: 50px;
                 width: 150px;
