@@ -24,14 +24,17 @@ export struct LiveStream {
 
 enum SubPage { Categories, Streams }
 
-export component CategoryView inherits Page {
+export component LiveStreamView inherits Page {
     has-back-button: true;
 
     in-out property <string> category_name: "Streams"; // Default header
     in-out property <SubPage> current-subpage: SubPage.Streams;
+    in-out property <Category> selected_category;
+
     in-out property <[LiveStream]> livestreams: [];
     callback on_livestream_selected(LiveStream);
-
+    header: category_name;
+    // TODO: Streams view is not scrollable here 
     Flickable {
         width: parent.width;
         height: parent.height - DemoPalette.base-font-size * 8;
@@ -48,17 +51,20 @@ export component CategoryView inherits Page {
         }
     }
 
-    back => {
-        root.current-subpage = SubPage.Categories;
-    }
+    // back => {
+    //     root.current-subpage = SubPage.Categories;
+    // }
 }
 
-export component CategoriesView inherits Page {
+export component LiveCategoriesView inherits Page {
     // header: "Categories";
     // has-back-button: true;
 
     in-out property <[Category]> categories: [];
+    in-out property <[LiveStream]> livestreams: [];
     in-out property <SubPage> current-subpage: SubPage.Categories;
+    in-out property <Category> selected_category;
+
     callback on_category_selected(Category);
 
     Flickable {
@@ -76,7 +82,10 @@ export component CategoriesView inherits Page {
                 }
             }
         }
-        CategoryView {
+        
+        LiveStreamView {
+            category_name: root.selected_category.category-name;
+            livestreams : root.livestreams;
             back => { root.current-subpage = SubPage.Categories; }
             x: root.current-subpage == SubPage.Streams ? 0 : parent.width + parent.x + 2px;
             animate x { duration: 125ms; easing: ease; }

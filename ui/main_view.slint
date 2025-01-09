@@ -1,11 +1,10 @@
 import { VerticalBox, HorizontalBox, Button } from "std-widgets.slint";
 import { DemoPalette, Page } from "common.slint";
 import { SettingsPage } from "./settings.slint";
-import { CategoriesView, Category, LiveStream } from "./categories_view.slint";
+import { LiveCategoriesView, LiveStreamView, Category, LiveStream } from "./live_view.slint";
 
 import "../assets/Amiri-Regular.ttf";
 import { LoginView } from "login_view.slint";
-import { CategoryView } from "categories_view.slint";
 
 component SideBarIcon inherits Rectangle {
     in-out property <bool> active;
@@ -93,7 +92,7 @@ export component MainView inherits Window {
 
                 property <duration> page-animation-duration: 250ms;
 
-                home-page := CategoriesView {
+                home-page := LiveCategoriesView {
                     header: "Live TV";
                     property <int> pageNumber: 0;
                     y: calcPageY(0);
@@ -108,53 +107,56 @@ export component MainView inherits Window {
                     }
 
                     categories <=> root.live_tv_categories;
+                    livestreams <=> root.livestreams;
+                    selected_category <=> root.selected_category;
+
                     on_category_selected(category) => {
-                    // Handle category selection for Live TV
-                    root.handle_category_selected(0, category);
+                        // Handle category selection for Live TV
+                        root.handle_category_selected(0, category);
                         // root.current-subpage = SubPage.Streams;
-                        root.selected_category = category;
+                        // root.selected_category = category;
                     }
                 }
 
-                movies := CategoriesView {
-                    header: "Movies - افلام";
-                    property <int> pageNumber: 1;
-                    y: calcPageY(1);
-                    opacity: root.active-page == pageNumber ? 1 : 0;
-                    animate y {
-                        duration: page-animation-duration;
-                        easing: ease-out-quad;
-                    }
-                    animate opacity {
-                        duration: page-animation-duration;
-                        easing: ease-out-quad;
-                    }
-                    categories <=> root.movies_categories;
-                    on_category_selected(category) => {
-                    // Handle category selection for Movies
-                    root.handle_category_selected(1, category);
-                    }
-                }
+                // movies := CategoriesView {
+                //     header: "Movies - افلام";
+                //     property <int> pageNumber: 1;
+                //     y: calcPageY(1);
+                //     opacity: root.active-page == pageNumber ? 1 : 0;
+                //     animate y {
+                //         duration: page-animation-duration;
+                //         easing: ease-out-quad;
+                //     }
+                //     animate opacity {
+                //         duration: page-animation-duration;
+                //         easing: ease-out-quad;
+                //     }
+                //     categories <=> root.movies_categories;
+                //     on_category_selected(category) => {
+                //     // Handle category selection for Movies
+                //     root.handle_category_selected(1, category);
+                //     }
+                // }
 
-                series:= CategoriesView {
-                    header: "Series - مسلسلات";
-                    property <int> pageNumber: 2;
-                    y: calcPageY(pageNumber);
-                    opacity: root.active-page == pageNumber ? 1 : 0;
-                    animate y {
-                        duration: page-animation-duration;
-                        easing: ease-out-quad;
-                    }
-                    animate opacity {
-                        duration: page-animation-duration;
-                        easing: ease-out-quad;
-                    }
-                    categories <=> root.series_categories;
-                    on_category_selected(category) => {
-                    // Handle category selection for Series
-                    root.handle_category_selected(2, category);
-                    }
-                }
+                // series := CategoriesView {
+                //     header: "Series - مسلسلات";
+                //     property <int> pageNumber: 2;
+                //     y: calcPageY(pageNumber);
+                //     opacity: root.active-page == pageNumber ? 1 : 0;
+                //     animate y {
+                //         duration: page-animation-duration;
+                //         easing: ease-out-quad;
+                //     }
+                //     animate opacity {
+                //         duration: page-animation-duration;
+                //         easing: ease-out-quad;
+                //     }
+                //     categories <=> root.series_categories;
+                //     on_category_selected(category) => {
+                //     // Handle category selection for Series
+                //     root.handle_category_selected(2, category);
+                //     }
+                // }
 
                 Page {
                     header: "Update Content";
