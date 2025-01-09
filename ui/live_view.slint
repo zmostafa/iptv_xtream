@@ -24,25 +24,72 @@ export struct LiveStream {
 
 enum SubPage { Categories, Streams }
 
+component ActionButton inherits Rectangle {
+    in property <image> icon <=> img.source;
+    in property <string> text <=> label.text;
+    width: DemoPalette.button-width;
+    height: DemoPalette.button-height;
+
+    callback clicked;
+
+    VerticalLayout {
+        spacing: 10px;
+
+        Rectangle {
+            border-radius: 25px;
+            border-width: 5px;
+            border-color: DemoPalette.secondary;
+            background: DemoPalette.dark-mode ? DemoPalette.primary : DemoPalette.background;
+            width: DemoPalette.button-width;
+            height: self.width;
+
+            img := Image {
+                width: 130px;
+            height: 130px;
+            }
+        }
+
+        label := Text {
+            font-size: DemoPalette.base-font-size;
+            font-weight: 800;
+            horizontal-alignment: center;
+            color: DemoPalette.text-primary;
+            wrap: word-wrap;
+        }
+    }
+
+    TouchArea {
+        clicked => {
+            root.clicked()
+        }
+    }
+}
+
 export component LiveStreamView inherits Page {
     has-back-button: true;
 
     in-out property <string> category_name: "Streams"; // Default header
     in-out property <SubPage> current-subpage: SubPage.Streams;
     in-out property <Category> selected_category;
+    in-out property <length> button-spacing: 35px;
+
 
     in-out property <[LiveStream]> livestreams: [];
     callback on_livestream_selected(LiveStream);
     header: category_name;
+    // Number of columns in the grid
+    property <int> columns: floor(root.width / (DemoPalette.button-width + root.button-spacing));
+
     // TODO: Streams view is not scrollable here 
     Flickable {
         width: parent.width;
         height: parent.height - DemoPalette.base-font-size * 8;
-        VerticalLayout {
-            spacing: 16px;
-            for live in root.livestreams: PushButton {
+        Rectangle {
+            for live[idx] in root.livestreams: ActionButton {
+                x: mod(idx, root.columns) * (DemoPalette.button-width + root.button-spacing);
+                y: floor(idx / root.columns) * (self.height + root.button-spacing);
                 text: live.name;
-                primary: true;
+                icon: @image-url("../assets/tv-icon.svg");
                 clicked => {
                     root.current-subpage = SubPage.Streams;
                     root.on_livestream_selected(live);
@@ -82,13 +129,18 @@ export component LiveCategoriesView inherits Page {
                 }
             }
         }
-        
+
         LiveStreamView {
             category_name: root.selected_category.category-name;
-            livestreams : root.livestreams;
-            back => { root.current-subpage = SubPage.Categories; }
+            livestreams: root.livestreams;
+            back => {
+                root.current-subpage = SubPage.Categories;
+            }
             x: root.current-subpage == SubPage.Streams ? 0 : parent.width + parent.x + 2px;
-            animate x { duration: 125ms; easing: ease; }
+            animate x {
+                duration: 125ms;
+                easing: ease;
+            }
         }
     }
 }
