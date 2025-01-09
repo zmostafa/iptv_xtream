@@ -58,7 +58,7 @@ export component MainView inherits Window {
     callback open-series();
     callback open-live-tv();
     callback login(string, string, string); // Forward login callback to login_view
-    callback handle_category_selected(int, string);
+    callback handle_category_selected(int, Category);
 
     in-out property <[Category]> live_tv_categories: [];
     in-out property <[Category]> movies_categories: [];
@@ -105,7 +105,7 @@ export component MainView inherits Window {
                     categories <=> root.live_tv_categories;
                     on_category_selected(category) => {
                     // Handle category selection for Live TV
-                    root.handle_category_selected(0, category.category-name);
+                    root.handle_category_selected(0, category);
                     }
                 }
 
@@ -125,7 +125,7 @@ export component MainView inherits Window {
                     categories <=> root.movies_categories;
                     on_category_selected(category) => {
                     // Handle category selection for Movies
-                    root.handle_category_selected(1, category.category-name);
+                    // root.handle_category_selected(1, category.category-name);
                     }
                 }
 
@@ -145,7 +145,7 @@ export component MainView inherits Window {
                     categories <=> root.series_categories;
                     on_category_selected(category) => {
                     // Handle category selection for Series
-                    root.handle_category_selected(2, category.category-name);
+                    // root.handle_category_selected(2, category.category-name);
                     }
                 }
 

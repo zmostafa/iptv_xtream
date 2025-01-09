@@ -133,23 +133,23 @@ impl App {
         });
 
         // Handle category selection
-        // self.main_view
-        //     .on_handle_category_selected(move |page_number, category| {
-        //         log::info!(
-        //             "Category selected: {} (ID: {}) on page {}",
-        //             category.category_name,
-        //             category.category_id,
-        //             page_number
-        //         );
+        self.main_view
+            .on_handle_category_selected(move |page_number, category| {
+                log::info!(
+                    "Category selected: {} (ID: {}) on page {}",
+                    category.category_name,
+                    category.category_id,
+                    page_number
+                );
 
-        //         // Use the category_id or other fields to fetch more data
-        //         let category_id = category.category_id.clone();
-        //         let category_name = category.category_name.clone();
-        //         let parent_id = category.parent_id;
+                // Use the category_id or other fields to fetch more data
+                let category_id = category.category_id.clone();
+                let category_name = category.category_name.clone();
+                let parent_id = category.parent_id;
 
-        //         log::info!("Category ID: {}, Parent ID: {}", category_id, parent_id);
-        //         // Handle category selection (e.g., fetch detailed content)
-        //     });
+                log::info!("Category ID: {}, Parent ID: {}", category_id, parent_id);
+                // Handle category selection (e.g., fetch detailed content)
+            });
 
         // Run the Slint event loop
         log::info!("Running MainView UI");

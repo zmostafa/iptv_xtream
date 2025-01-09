@@ -59,7 +59,7 @@ export global DemoPalette  {
     // as the combo box or spin box.
     out property <color> control-secondary: #6284FF;
     out property <color> control-foreground: root.dark-mode ? white : #122F7B;  // FIXME: the night mode color was not part of the design
-    out property <color> primary-push-button-base: #6284FF;
+    out property <color> primary-push-button-base: #17b2f4f8;
     out property <ButtonColors> primary-push-button-colors: {
         base: root.primary-push-button-base,
         pressed: root.primary-push-button-base.darker(40%),
@@ -338,7 +338,7 @@ export component PushButton inherits Rectangle {
     border-radius: 13.5px;
     background: root.pressed ? root.colors.pressed : (touch-area.has-hover ? root.colors.hovered : root.colors.base);
 
-    height: 27px; // line-height in the design
+    height: 50px; // line-height in the design
     horizontal-stretch: 1;
 
     HorizontalLayout {
@@ -360,6 +360,7 @@ export component PushButton inherits Rectangle {
             color: DemoPalette.push-button-text-color;
             horizontal-alignment: center;
             vertical-alignment: center;
+            font-family: "Amiri";
         }
     }
 

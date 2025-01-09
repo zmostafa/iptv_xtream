@@ -10,18 +10,18 @@ export component CategoriesView inherits Page {
     // header: "Categories";
     // has-back-button: true;
 
-    in-out property <[Category]> categories;
+    in-out property <[Category]> categories: [];
     callback on_category_selected(Category);
 
     Flickable {
         width: parent.width;
-        height: parent.height - DemoPalette.base-font-size * 2;
+        height: parent.height - DemoPalette.base-font-size * 8; // Display of categories starts after Header
 
         VerticalLayout {
             spacing: 16px;
             for category in root.categories: PushButton {
                 text: category.category_name;
-                primary: false;
+                primary: true;
                 clicked => { root.on_category_selected(category); }
             }
         }
