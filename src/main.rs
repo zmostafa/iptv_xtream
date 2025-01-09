@@ -157,8 +157,11 @@ impl App {
         });
 
         // Handle category selection
+        let db = Arc::clone(&self.db);
+        let main_view_weak = self.main_view.as_weak();
         self.main_view
             .on_handle_category_selected(move |page_number, category| {
+                let main_view = main_view_weak.unwrap();
                 log::info!(
                     "Category selected: {} (ID: {}) on page {}",
                     category.category_name,
@@ -173,6 +176,31 @@ impl App {
 
                 log::info!("Category ID: {}, Parent ID: {}", category_id, parent_id);
                 // Handle category selection (e.g., fetch detailed content)
+                let live_streams = db.get_live_streams(&category_id);
+                // Convert streams to Slint-compatible format
+                let slint_streams: Vec<slint_generatedMainView::LiveStream> = live_streams
+                    .into_iter()
+                    .map(|stream| slint_generatedMainView::LiveStream {
+                        num: stream.num as i32,
+                        name: stream.name.into(),
+                        stream_type: stream.stream_type.into(),
+                        stream_id: stream.stream_id as i32,
+                        stream_icon: stream.stream_icon.into(),
+                        epg_channel_id: stream.epg_channel_id.unwrap_or_default().into(),
+                        added: stream.added.unwrap_or_default().into(),
+                        is_adult: stream.is_adult.unwrap_or_default().into(),
+                        category_id: stream.category_id.unwrap_or_default().into(),
+                        custom_sid: stream.custom_sid.unwrap_or_default().into(),
+                        tv_archive: stream.tv_archive.unwrap_or_default().into(),
+                        direct_source: stream.direct_source.unwrap_or_default().into(),
+                        tv_archive_duration: stream.tv_archive_duration.unwrap_or_default() as i32,
+                    })
+                    .collect();
+                // let main_view = main_view_weak.clone();
+                log::info!("Setting LiveStreams for this category");
+                main_view.set_livestreams(ModelRc::new(VecModel::from(slint_streams)).into());
+                main_view.set_selected_category(category);
+                // main_view.set_current_subpage(slint_generatedMainView::SubPage::Streams);
             });
 
         // Run the Slint event loop

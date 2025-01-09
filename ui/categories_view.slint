@@ -6,11 +6,59 @@ export struct Category {
     parent_id: int,
 }
 
+export struct LiveStream {
+    num: int,
+    name: string,
+    stream_type: string,
+    stream_id: int,
+    stream_icon: string,
+    epg_channel_id: string,
+    added: string,
+    is_adult: string,
+    category_id: string,
+    custom_sid: string,
+    tv_archive: int,
+    direct_source: string,
+    tv_archive_duration: int,
+}
+
+enum SubPage { Categories, Streams }
+
+export component CategoryView inherits Page {
+    has-back-button: true;
+
+    in-out property <string> category_name: "Streams"; // Default header
+    in-out property <SubPage> current-subpage: SubPage.Streams;
+    in-out property <[LiveStream]> livestreams: [];
+    callback on_livestream_selected(LiveStream);
+
+    Flickable {
+        width: parent.width;
+        height: parent.height - DemoPalette.base-font-size * 8;
+        VerticalLayout {
+            spacing: 16px;
+            for live in root.livestreams: PushButton {
+                text: live.name;
+                primary: true;
+                clicked => {
+                    root.current-subpage = SubPage.Streams;
+                    root.on_livestream_selected(live);
+                }
+            }
+        }
+    }
+
+    back => {
+        root.current-subpage = SubPage.Categories;
+    }
+}
+
 export component CategoriesView inherits Page {
     // header: "Categories";
     // has-back-button: true;
 
     in-out property <[Category]> categories: [];
+    in-out property <SubPage> current-subpage: SubPage.Categories;
     callback on_category_selected(Category);
 
     Flickable {
@@ -22,8 +70,16 @@ export component CategoriesView inherits Page {
             for category in root.categories: PushButton {
                 text: category.category_name;
                 primary: true;
-                clicked => { root.on_category_selected(category); }
+                clicked => {
+                    root.current-subpage = SubPage.Streams;
+                    root.on_category_selected(category);
+                }
             }
+        }
+        CategoryView {
+            back => { root.current-subpage = SubPage.Categories; }
+            x: root.current-subpage == SubPage.Streams ? 0 : parent.width + parent.x + 2px;
+            animate x { duration: 125ms; easing: ease; }
         }
     }
 }
