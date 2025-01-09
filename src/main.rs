@@ -107,17 +107,41 @@ impl App {
                                     parent_id: cat.parent_id as i32,
                                 })
                                 .collect();
+
+                            let movies_categories: Vec<slint_generatedMainView::Category> = movies
+                                .into_iter()
+                                .map(|cat| slint_generatedMainView::Category {
+                                    category_id: cat.category_id.into(),
+                                    category_name: cat.category_name.into(),
+                                    parent_id: cat.parent_id as i32,
+                                })
+                                .collect();
+
+                            let series_categories: Vec<slint_generatedMainView::Category> = series
+                                .into_iter()
+                                .map(|cat| slint_generatedMainView::Category {
+                                    category_id: cat.category_id.into(),
+                                    category_name: cat.category_name.into(),
+                                    parent_id: cat.parent_id as i32,
+                                })
+                                .collect();
                             // Update the UI on the main thread
                             slint::invoke_from_event_loop(move || {
                                 // To come over the issue of safely sending Rc between threads, we create the ModelRc here.
-                                let live_tv_categories = ModelRc::new(VecModel::from(live_tv_categories));
+                                let live_tv_categories =
+                                    ModelRc::new(VecModel::from(live_tv_categories));
+                                let movies_categories =
+                                    ModelRc::new(VecModel::from(movies_categories));
+                                let series_categories =
+                                    ModelRc::new(VecModel::from(series_categories));
+
                                 let main_view = main_view_weak_clone.unwrap();
                                 main_view.set_sidebar_enabled(true);
                                 main_view.set_active_page(0);
                                 // TODO: disable login view after login.
                                 main_view.set_live_tv_categories(live_tv_categories);
-                                // main_view.set_movies_categories(movies.into());
-                                // main_view.set_series_categories(series.into());
+                                main_view.set_movies_categories(movies_categories);
+                                main_view.set_series_categories(series_categories);
                             })
                             .unwrap();
                         }
