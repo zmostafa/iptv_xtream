@@ -189,6 +189,8 @@ impl App {
                         // let _imgg = image::ImageReader::open(img);
                         match image::load_from_memory(&img) {
                             Ok(_img) => {
+                                // Convert image to rgba8 ..... cool.
+                                let _img = _img.into_rgba8();
                                 slint_generatedMainView::LiveStream {
                                     num: stream.num as i32,
                                     name: stream.name.into(),
