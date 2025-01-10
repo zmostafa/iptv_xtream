@@ -11,7 +11,7 @@ export struct LiveStream {
     name: string,
     stream_type: string,
     stream_id: int,
-    stream_icon: string,
+    stream_icon: image,
     epg_channel_id: string,
     added: string,
     is_adult: string,
@@ -45,7 +45,7 @@ component ActionButton inherits Rectangle {
 
             img := Image {
                 width: 130px;
-            height: 130px;
+                height: 130px;
             }
         }
 
@@ -73,7 +73,6 @@ export component LiveStreamView inherits Page {
     in-out property <Category> selected_category;
     in-out property <length> button-spacing: 35px;
 
-
     in-out property <[LiveStream]> livestreams: [];
     callback on_livestream_selected(LiveStream);
     header: category_name;
@@ -89,7 +88,7 @@ export component LiveStreamView inherits Page {
                 x: mod(idx, root.columns) * (DemoPalette.button-width + root.button-spacing);
                 y: floor(idx / root.columns) * (self.height + root.button-spacing);
                 text: live.name;
-                icon: @image-url("../assets/tv-icon.svg");
+                icon: live.stream_icon;
                 clicked => {
                     root.current-subpage = SubPage.Streams;
                     root.on_livestream_selected(live);

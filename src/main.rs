@@ -8,13 +8,15 @@ use crate::db::{Database, ImageCache};
 mod ui_types;
 
 use async_compat::Compat;
+use image::{self, EncodableLayout};
 use isahc::config::Configurable;
 use isahc::HttpClient;
+use std::io::Cursor;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use slint::{ModelRc, VecModel};
+use slint::{Image, ModelRc, Rgba8Pixel, SharedPixelBuffer, VecModel};
 
 struct App {
     main_view: MainView,
@@ -71,7 +73,7 @@ impl App {
             // let main_view = main_view_weak.unwrap();
             let client = Arc::clone(&client); // Clone the Arc for the async task
             let db = Arc::clone(&db);
-            let image_cache = Arc::clone(&image_cache);
+            // let image_cache = Arc::clone(&image_cache);
 
             if !url.is_empty() && !username.is_empty() && !password.is_empty() {
                 // Clone the data to ensure it has a 'static lifetime
@@ -158,6 +160,7 @@ impl App {
 
         // Handle category selection
         let db = Arc::clone(&self.db);
+        let image_cache = Arc::clone(&image_cache);
         let main_view_weak = self.main_view.as_weak();
         self.main_view
             .on_handle_category_selected(move |page_number, category| {
@@ -180,20 +183,52 @@ impl App {
                 // Convert streams to Slint-compatible format
                 let slint_streams: Vec<slint_generatedMainView::LiveStream> = live_streams
                     .into_iter()
-                    .map(|stream| slint_generatedMainView::LiveStream {
-                        num: stream.num as i32,
-                        name: stream.name.into(),
-                        stream_type: stream.stream_type.into(),
-                        stream_id: stream.stream_id as i32,
-                        stream_icon: stream.stream_icon.into(),
-                        epg_channel_id: stream.epg_channel_id.unwrap_or_default().into(),
-                        added: stream.added.unwrap_or_default().into(),
-                        is_adult: stream.is_adult.unwrap_or_default().into(),
-                        category_id: stream.category_id.unwrap_or_default().into(),
-                        custom_sid: stream.custom_sid.unwrap_or_default().into(),
-                        tv_archive: stream.tv_archive.unwrap_or_default().into(),
-                        direct_source: stream.direct_source.unwrap_or_default().into(),
-                        tv_archive_duration: stream.tv_archive_duration.unwrap_or_default() as i32,
+                    .map(|stream| {
+                        let img = image_cache.load_image(&stream.stream_icon).unwrap();
+                        // let _img = image::load_from_memory(&img).unwrap();
+                        // let _imgg = image::ImageReader::open(img);
+                        match image::load_from_memory(&img) {
+                            Ok(_img) => {
+                                slint_generatedMainView::LiveStream {
+                                    num: stream.num as i32,
+                                    name: stream.name.into(),
+                                    stream_type: stream.stream_type.into(),
+                                    stream_id: stream.stream_id as i32,
+                                    stream_icon: Image::from_rgba8(
+                                        SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&_img.as_bytes(), _img.width(), _img.height()),
+                                    ),
+                                    epg_channel_id: stream.epg_channel_id.unwrap_or_default().into(),
+                                    added: stream.added.unwrap_or_default().into(),
+                                    is_adult: stream.is_adult.unwrap_or_default().into(),
+                                    category_id: stream.category_id.unwrap_or_default().into(),
+                                    custom_sid: stream.custom_sid.unwrap_or_default().into(),
+                                    tv_archive: stream.tv_archive.unwrap_or_default().into(),
+                                    direct_source: stream.direct_source.unwrap_or_default().into(),
+                                    tv_archive_duration: stream.tv_archive_duration.unwrap_or_default()
+                                        as i32,
+                                }
+                            }
+                            Err(err) => {
+                                log::error!("Failed to read image. {}", err);
+                                slint_generatedMainView::LiveStream {
+                                    num: stream.num as i32,
+                                    name: stream.name.into(),
+                                    stream_type: stream.stream_type.into(),
+                                    stream_id: stream.stream_id as i32,
+                                    stream_icon: Image::default(),
+                                    epg_channel_id: stream.epg_channel_id.unwrap_or_default().into(),
+                                    added: stream.added.unwrap_or_default().into(),
+                                    is_adult: stream.is_adult.unwrap_or_default().into(),
+                                    category_id: stream.category_id.unwrap_or_default().into(),
+                                    custom_sid: stream.custom_sid.unwrap_or_default().into(),
+                                    tv_archive: stream.tv_archive.unwrap_or_default().into(),
+                                    direct_source: stream.direct_source.unwrap_or_default().into(),
+                                    tv_archive_duration: stream.tv_archive_duration.unwrap_or_default() as i32,
+                                }
+                            }
+                            
+                        }
+                        
                     })
                     .collect();
                 // let main_view = main_view_weak.clone();
