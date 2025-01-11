@@ -27,10 +27,14 @@ enum SubPage { Categories, Streams }
 component ActionButton inherits Rectangle {
     in property <image> icon <=> img.source;
     in property <string> text <=> label.text;
+    in property <int> stream_id: 10;
+    in property <LiveStream> stream_data;
+
+
     width: DemoPalette.button-width;
     height: DemoPalette.button-height;
 
-    callback clicked;
+    callback clicked(int);
 
     VerticalLayout {
         spacing: 10px;
@@ -38,7 +42,8 @@ component ActionButton inherits Rectangle {
         Rectangle {
             border-radius: 25px;
             border-width: 5px;
-            border-color: DemoPalette.secondary;
+            // border-color: DemoPalette.secondary;
+            border-color: white;
             background: DemoPalette.dark-mode ? DemoPalette.primary : DemoPalette.background;
             width: DemoPalette.button-width;
             height: self.width;
@@ -46,6 +51,7 @@ component ActionButton inherits Rectangle {
             img := Image {
                 width: 130px;
                 height: 130px;
+                image-fit: contain;
             }
         }
 
@@ -60,7 +66,7 @@ component ActionButton inherits Rectangle {
 
     TouchArea {
         clicked => {
-            root.clicked()
+            root.clicked(root.stream_id)
         }
     }
 }
@@ -74,7 +80,9 @@ export component LiveStreamView inherits Page {
     in-out property <length> button-spacing: 35px;
 
     in-out property <[LiveStream]> livestreams: [];
-    callback on_livestream_selected(LiveStream);
+    in-out property <LiveStream> livestream;
+    in-out property <int> stream_id: 100;
+    callback on_livestream_selected(int);
     header: category_name;
     // Number of columns in the grid
     property <int> columns: floor(root.width / (DemoPalette.button-width + root.button-spacing));
@@ -89,17 +97,16 @@ export component LiveStreamView inherits Page {
                 y: floor(idx / root.columns) * (self.height + root.button-spacing);
                 text: live.name;
                 icon: live.stream_icon;
+                stream_id: live.stream_id;
+                stream_data: live;
                 clicked => {
-                    root.current-subpage = SubPage.Streams;
-                    root.on_livestream_selected(live);
+                    // root.current-subpage = SubPage.Streams;
+                    root.stream_id = self.stream_id; // Update stream_id
+                    root.on_livestream_selected(self.stream_id);
                 }
             }
         }
     }
-
-    // back => {
-    //     root.current-subpage = SubPage.Categories;
-    // }
 }
 
 export component LiveCategoriesView inherits Page {
@@ -108,10 +115,14 @@ export component LiveCategoriesView inherits Page {
 
     in-out property <[Category]> categories: [];
     in-out property <[LiveStream]> livestreams: [];
+    in-out property <LiveStream> livestream;
+    in-out property <int> stream_id;
     in-out property <SubPage> current-subpage: SubPage.Categories;
     in-out property <Category> selected_category;
 
     callback on_category_selected(Category);
+    callback on_livestream_selected(int);
+
 
     Flickable {
         width: parent.width;
@@ -132,6 +143,8 @@ export component LiveCategoriesView inherits Page {
         LiveStreamView {
             category_name: root.selected_category.category-name;
             livestreams: root.livestreams;
+            stream_id <=> root.stream_id; // Bind stream_id
+
             back => {
                 root.current-subpage = SubPage.Categories;
             }
@@ -139,6 +152,10 @@ export component LiveCategoriesView inherits Page {
             animate x {
                 duration: 125ms;
                 easing: ease;
+            }
+            on_livestream_selected => {
+                root.stream_id = stream_id; // Update stream_id
+                root.on_livestream_selected(stream_id);
             }
         }
     }

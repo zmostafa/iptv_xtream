@@ -59,13 +59,15 @@ export component MainView inherits Window {
     callback open-live-tv();
     callback login(string, string, string); // Forward login callback to login_view
     callback handle_category_selected(int, Category);
-    callback handle_livestream_selected(LiveStream);
+    callback handle_livestream_selected(int);
 
     in-out property <[Category]> live_tv_categories: [];
     in-out property <[Category]> movies_categories: [];
     in-out property <[Category]> series_categories: [];
 
     in-out property <[LiveStream]> livestreams: [];
+    in-out property <LiveStream> livestream;
+    in-out property <int> stream_id: 1000;
     in-out property <Category> selected_category;
 
     HorizontalLayout {
@@ -108,6 +110,7 @@ export component MainView inherits Window {
 
                     categories <=> root.live_tv_categories;
                     livestreams <=> root.livestreams;
+                    stream_id <=> root.stream_id; // Bind stream_id
                     selected_category <=> root.selected_category;
 
                     on_category_selected(category) => {
@@ -116,27 +119,33 @@ export component MainView inherits Window {
                         // root.current-subpage = SubPage.Streams;
                         // root.selected_category = category;
                     }
+                    
+                    on_livestream_selected(stream_id) => {
+                        root.stream_id = stream_id; // Update stream_id
+                        root.handle_livestream_selected(stream_id);
+                    }
+
                 }
 
-                // movies := CategoriesView {
-                //     header: "Movies - افلام";
-                //     property <int> pageNumber: 1;
-                //     y: calcPageY(1);
-                //     opacity: root.active-page == pageNumber ? 1 : 0;
-                //     animate y {
-                //         duration: page-animation-duration;
-                //         easing: ease-out-quad;
-                //     }
-                //     animate opacity {
-                //         duration: page-animation-duration;
-                //         easing: ease-out-quad;
-                //     }
-                //     categories <=> root.movies_categories;
-                //     on_category_selected(category) => {
-                //     // Handle category selection for Movies
-                //     root.handle_category_selected(1, category);
-                //     }
-                // }
+                movies := LiveCategoriesView {
+                    header: "Movies - افلام";
+                    property <int> pageNumber: 1;
+                    y: calcPageY(1);
+                    opacity: root.active-page == pageNumber ? 1 : 0;
+                    animate y {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                    animate opacity {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                    categories <=> root.movies_categories;
+                    on_category_selected(category) => {
+                    // Handle category selection for Movies
+                    root.handle_category_selected(1, category);
+                    }
+                }
 
                 // series := CategoriesView {
                 //     header: "Series - مسلسلات";
