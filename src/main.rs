@@ -181,117 +181,252 @@ impl App {
 
                 log::info!("Category ID: {}, Parent ID: {}", category_id, parent_id);
 
-                // Handle category selection (e.g., fetch detailed content)
-                let live_streams = db.get_live_streams(&category_id);
+                match page_number {
+                    0 => {
+                        // Handle category selection (e.g., fetch detailed content)
+                        let live_streams = db.get_live_streams(&category_id);
 
-                // Convert streams to Slint-compatible format
-                let slint_streams: Vec<slint_generatedMainView::LiveStream> = live_streams
-                    .into_iter()
-                    .map(|stream| {
-                        // Try to load the image from the cache
-                        let img = image_cache
-                            .load_image(&stream.stream_icon)
-                            .unwrap_or_default();
+                        // Convert streams to Slint-compatible format
+                        let slint_streams: Vec<slint_generatedMainView::LiveStream> = live_streams
+                            .into_iter()
+                            .map(|stream| {
+                                // Try to load the image from the cache
+                                let img = image_cache
+                                    .load_image(&stream.stream_icon)
+                                    .unwrap_or_default();
 
-                        // If the image is not in the cache, download it asynchronously
-                        if img.is_empty() {
-                            let client_clone = Arc::clone(&client);
-                            let image_cache_clone = Arc::clone(&image_cache);
-                            let stream_icon = stream.stream_icon.clone();
-                            let main_view_weak = main_view_weak.clone();
-                            let stream_id = stream.stream_id;
+                                // If the image is not in the cache, download it asynchronously
+                                if !image_cache.is_cached(&stream.stream_icon) {
+                                    let client_clone = Arc::clone(&client);
+                                    let image_cache_clone = Arc::clone(&image_cache);
+                                    let stream_icon = stream.stream_icon.clone();
+                                    let main_view_weak = main_view_weak.clone();
+                                    let stream_id = stream.stream_id;
 
-                            // Spawn a background task to download the image
-                            slint::spawn_local(Compat::new(async move {
-                                if let Err(err) = utils::fetch_and_cache_image(
-                                    (*client_clone).clone(),
-                                    (*image_cache_clone).clone(),
-                                    &stream_icon,
-                                )
-                                .await
-                                {
-                                    log::error!("Failed to download image: {}", err);
-                                } else {
-                                    // Image downloaded successfully, update the UI
-                                    slint::invoke_from_event_loop(move || {
-                                        if let Some(main_view) = main_view_weak.upgrade() {
-                                            // Find the stream in the current list and update its image
-                                            let mut streams = main_view
-                                                .get_livestreams()
-                                                .iter()
-                                                .collect::<Vec<_>>();
-                                            if let Some(stream) = streams
-                                                .iter_mut()
-                                                .find(|s| s.stream_id == stream_id as i32)
-                                            {
-                                                if let Ok(img) =
-                                                    image_cache_clone.load_image(&stream_icon)
-                                                {
-                                                    if let Ok(image) = image::load_from_memory(&img)
+                                    // Spawn a background task to download the image
+                                    slint::spawn_local(Compat::new(async move {
+                                        if let Err(err) = utils::fetch_and_cache_image(
+                                            (*client_clone).clone(),
+                                            (*image_cache_clone).clone(),
+                                            &stream_icon,
+                                        )
+                                        .await
+                                        {
+                                            log::error!("Failed to download image: {}", err);
+                                        } else {
+                                            // Image downloaded successfully, update the UI
+                                            slint::invoke_from_event_loop(move || {
+                                                if let Some(main_view) = main_view_weak.upgrade() {
+                                                    // Find the stream in the current list and update its image
+                                                    let mut streams = main_view
+                                                        .get_livestreams()
+                                                        .iter()
+                                                        .collect::<Vec<_>>();
+                                                    if let Some(stream) = streams
+                                                        .iter_mut()
+                                                        .find(|s| s.stream_id == stream_id as i32)
                                                     {
-                                                        let image = image.into_rgba8();
-                                                        stream.stream_icon =
-                                                            Image::from_rgba8(SharedPixelBuffer::<
-                                                                Rgba8Pixel,
-                                                            >::clone_from_slice(
-                                                                &image.as_bytes(),
-                                                                image.width(),
-                                                                image.height(),
-                                                            ));
+                                                        if let Ok(img) = image_cache_clone
+                                                            .load_image(&stream_icon)
+                                                        {
+                                                            if let Ok(image) =
+                                                                image::load_from_memory(&img)
+                                                            {
+                                                                let image = image.into_rgba8();
+                                                                stream.stream_icon =
+                                                                    Image::from_rgba8(
+                                                                        SharedPixelBuffer::<
+                                                                            Rgba8Pixel,
+                                                                        >::clone_from_slice(
+                                                                            &image.as_bytes(),
+                                                                            image.width(),
+                                                                            image.height(),
+                                                                        ),
+                                                                    );
+                                                            }
+                                                        }
                                                     }
+                                                    // Update the UI with the new stream list
+                                                    main_view.set_livestreams(
+                                                        ModelRc::new(VecModel::from(streams))
+                                                            .into(),
+                                                    );
                                                 }
-                                            }
-                                            // Update the UI with the new stream list
-                                            main_view.set_livestreams(
-                                                ModelRc::new(VecModel::from(streams)).into(),
-                                            );
+                                            })
+                                            .unwrap();
                                         }
-                                    })
+                                    }))
                                     .unwrap();
                                 }
-                            }))
-                            .unwrap();
-                        }
 
-                        // Create the LiveStream object with a placeholder image
-                        slint_generatedMainView::LiveStream {
-                            num: stream.num as i32,
-                            name: stream.name.into(),
-                            stream_type: stream.stream_type.into(),
-                            stream_id: stream.stream_id as i32,
-                            stream_icon: if img.is_empty() {
-                                // Use a placeholder image if the image is not yet downloaded
-                                Image::default()
-                            } else {
-                                // Use the cached image
-                                if let Ok(image) = image::load_from_memory(&img) {
-                                    let image = image.into_rgba8();
-                                    Image::from_rgba8(
-                                        SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
-                                            &image.as_bytes(),
-                                            image.width(),
-                                            image.height(),
-                                        ),
-                                    )
-                                } else {
-                                    Image::default()
+                                // Create the LiveStream object with a placeholder image
+                                slint_generatedMainView::LiveStream {
+                                    num: stream.num as i32,
+                                    name: stream.name.into(),
+                                    stream_type: stream.stream_type.into(),
+                                    stream_id: stream.stream_id as i32,
+                                    stream_icon: if img.is_empty() {
+                                        // Use a placeholder image if the image is not yet downloaded
+                                        Image::default()
+                                    } else {
+                                        // Use the cached image
+                                        if let Ok(image) = image::load_from_memory(&img) {
+                                            let image = image.into_rgba8();
+                                            Image::from_rgba8(
+                                                SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+                                                    &image.as_bytes(),
+                                                    image.width(),
+                                                    image.height(),
+                                                ),
+                                            )
+                                        } else {
+                                            Image::default()
+                                        }
+                                    },
+                                    epg_channel_id: stream
+                                        .epg_channel_id
+                                        .unwrap_or_default()
+                                        .into(),
+                                    added: stream.added.unwrap_or_default().into(),
+                                    is_adult: stream.is_adult.unwrap_or_default().into(),
+                                    category_id: stream.category_id.unwrap_or_default().into(),
+                                    custom_sid: stream.custom_sid.unwrap_or_default().into(),
+                                    tv_archive: stream.tv_archive.unwrap_or_default().into(),
+                                    direct_source: stream.direct_source.unwrap_or_default().into(),
+                                    tv_archive_duration: stream
+                                        .tv_archive_duration
+                                        .unwrap_or_default()
+                                        as i32,
                                 }
-                            },
-                            epg_channel_id: stream.epg_channel_id.unwrap_or_default().into(),
-                            added: stream.added.unwrap_or_default().into(),
-                            is_adult: stream.is_adult.unwrap_or_default().into(),
-                            category_id: stream.category_id.unwrap_or_default().into(),
-                            custom_sid: stream.custom_sid.unwrap_or_default().into(),
-                            tv_archive: stream.tv_archive.unwrap_or_default().into(),
-                            direct_source: stream.direct_source.unwrap_or_default().into(),
-                            tv_archive_duration: stream.tv_archive_duration.unwrap_or_default()
-                                as i32,
-                        }
-                    })
-                    .collect();
+                            })
+                            .collect();
 
-                // Update the UI with the initial list of streams (some images may be placeholders)
-                main_view.set_livestreams(ModelRc::new(VecModel::from(slint_streams)).into());
+                        // Update the UI with the initial list of streams (some images may be placeholders)
+                        main_view
+                            .set_livestreams(ModelRc::new(VecModel::from(slint_streams)).into());
+                    }
+                    1 => {
+                        // Handle category selection (e.g., fetch detailed content)
+                        let movies_streams = db.get_movies_streams(&category_id);
+
+                        // Convert streams to Slint-compatible format
+                        let slint_streams: Vec<slint_generatedMainView::Movie> = movies_streams
+                            .into_iter()
+                            .map(|stream| {
+                                // Try to load the image from the cache
+                                let img = image_cache
+                                    .load_image(&stream.stream_icon)
+                                    .unwrap_or_default();
+
+                                // If the image is not in the cache, download it asynchronously
+                                if !image_cache.is_cached(&stream.stream_icon) {
+                                    let client_clone = Arc::clone(&client);
+                                    let image_cache_clone = Arc::clone(&image_cache);
+                                    let stream_icon = stream.stream_icon.clone();
+                                    let main_view_weak = main_view_weak.clone();
+                                    let stream_id = stream.stream_id;
+
+                                    // Spawn a background task to download the image
+                                    slint::spawn_local(Compat::new(async move {
+                                        if let Err(err) = utils::fetch_and_cache_image(
+                                            (*client_clone).clone(),
+                                            (*image_cache_clone).clone(),
+                                            &stream_icon,
+                                        )
+                                        .await
+                                        {
+                                            log::error!("Failed to download image: {}", err);
+                                        } else {
+                                            // Image downloaded successfully, update the UI
+                                            slint::invoke_from_event_loop(move || {
+                                                if let Some(main_view) = main_view_weak.upgrade() {
+                                                    // Find the stream in the current list and update its image
+                                                    let mut streams = main_view
+                                                        .get_movies_streams()
+                                                        .iter()
+                                                        .collect::<Vec<_>>();
+                                                    if let Some(stream) = streams
+                                                        .iter_mut()
+                                                        .find(|s| s.stream_id == stream_id as i32)
+                                                    {
+                                                        if let Ok(img) = image_cache_clone
+                                                            .load_image(&stream_icon)
+                                                        {
+                                                            if let Ok(image) =
+                                                                image::load_from_memory(&img)
+                                                            {
+                                                                let image = image.into_rgba8();
+                                                                stream.stream_icon =
+                                                                    Image::from_rgba8(
+                                                                        SharedPixelBuffer::<
+                                                                            Rgba8Pixel,
+                                                                        >::clone_from_slice(
+                                                                            &image.as_bytes(),
+                                                                            image.width(),
+                                                                            image.height(),
+                                                                        ),
+                                                                    );
+                                                            }
+                                                        }
+                                                    }
+                                                    // Update the UI with the new stream list
+                                                    main_view.set_movies_streams(
+                                                        ModelRc::new(VecModel::from(streams))
+                                                            .into(),
+                                                    );
+                                                }
+                                            })
+                                            .unwrap();
+                                        }
+                                    }))
+                                    .unwrap();
+                                }
+
+                                // Create the Movie object with a placeholder image
+                                slint_generatedMainView::Movie {
+                                    num: stream.num as i32,
+                                    name: stream.name.into(),
+                                    stream_type: stream.stream_type.into(),
+                                    stream_id: stream.stream_id as i32,
+                                    stream_icon: if img.is_empty() {
+                                        // Use a placeholder image if the image is not yet downloaded
+                                        Image::default()
+                                    } else {
+                                        // Use the cached image
+                                        if let Ok(image) = image::load_from_memory(&img) {
+                                            let image = image.into_rgba8();
+                                            Image::from_rgba8(
+                                                SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+                                                    &image.as_bytes(),
+                                                    image.width(),
+                                                    image.height(),
+                                                ),
+                                            )
+                                        } else {
+                                            Image::default()
+                                        }
+                                    },
+                                    added: stream.added.unwrap_or_default().into(),
+                                    is_adult: stream.is_adult.into(),
+                                    category_id: stream.category_id.into(),
+                                    custom_sid: stream.custom_sid.into(),
+                                    rating_5based: stream.rating_5based.into(),
+                                    container_extension: stream.container_extension.into(),
+                                    direct_source: stream.direct_source.into(),
+                                }
+                            })
+                            .collect();
+
+                        // Update the UI with the initial list of streams (some images may be placeholders)
+                        main_view.set_movies_streams(
+                            ModelRc::new(VecModel::from(slint_streams)).into(),
+                        );
+                    }
+                    2 => {}
+                    _ => {
+                        log::error!("Unkmown page");
+                    }
+                }
                 main_view.set_selected_category(category);
             });
 
@@ -308,6 +443,44 @@ impl App {
                     db.get::<String>("password").unwrap_or_default(),
                     livestream,
                     "ts"
+                );
+
+                log::info!("Playing Live Stream {}", &stream_url);
+
+                // Socket path
+                let temp_dir = std::env::current_dir().unwrap().join("iptv_cache");
+                let socket_path = temp_dir.join("mpvsocket");
+
+                // TODO: only ONE player should be allowed.
+                Command::new("mpv")
+                    .arg(&stream_url)
+                    .arg("--no-terminal")
+                    .arg("--force-window=yes")
+                    .arg(format!(
+                        "--input-ipc-server={}",
+                        socket_path.to_string_lossy()
+                    ))
+                    .arg("--resume-playback")
+                    .arg("--save-position-on-quit")
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .spawn()
+                    .expect("Failed to start MPV");
+            });
+
+        let db = Arc::clone(&self.db);
+        self.main_view
+            .on_handle_movie_selected(move |movie, extension| {
+                log::warn!("Stream: {:?}", movie);
+
+                let stream_url = format!(
+                    "{}/{}/{}/{}/{}.{}",
+                    db.get::<String>("api_url").unwrap_or_default(),
+                    "movie",
+                    db.get::<String>("username").unwrap_or_default(),
+                    db.get::<String>("password").unwrap_or_default(),
+                    movie,
+                    extension
                 );
 
                 log::info!("Playing Live Stream {}", &stream_url);

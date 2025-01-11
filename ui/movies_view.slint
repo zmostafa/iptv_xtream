@@ -1,25 +1,25 @@
 import { DemoPalette, Page, PushButton } from "common.slint";
 import { Spinner } from "std-widgets.slint";
+
 export struct Category {
     category_id: string,
     category_name: string,
     parent_id: int,
 }
 
-export struct LiveStream {
+export struct Movie {
     num: int,
     name: string,
     stream_type: string,
     stream_id: int,
     stream_icon: image,
-    epg_channel_id: string,
+    rating_5based: float,
     added: string,
     is_adult: string,
     category_id: string,
+    container_extension: string,
     custom_sid: string,
-    tv_archive: int,
     direct_source: string,
-    tv_archive_duration: int,
 }
 
 enum SubPage { Categories, Streams }
@@ -27,8 +27,9 @@ enum SubPage { Categories, Streams }
 component ActionButton inherits Rectangle {
     in property <image> icon <=> img.source;
     in property <string> text <=> label.text;
-    in property <int> stream_id: 10;
-    in property <LiveStream> stream_data;
+    in property <int> stream_id;
+    in property <Movie> stream_data;
+    in property <string> extension;
 
     width: DemoPalette.button-width;
     height: DemoPalette.button-height;
@@ -78,7 +79,7 @@ component ActionButton inherits Rectangle {
     }
 }
 
-export component LiveStreamView inherits Page {
+export component MoviesView inherits Page {
     has-back-button: true;
 
     in-out property <string> category_name: "Streams"; // Default header
@@ -86,10 +87,12 @@ export component LiveStreamView inherits Page {
     in-out property <Category> selected_category;
     in-out property <length> button-spacing: 35px;
 
-    in-out property <[LiveStream]> livestreams: [];
-    in-out property <LiveStream> livestream;
+    in-out property <[Movie]> movies_streams: [];
+    in-out property <Movie> movie;
     in-out property <int> stream_id;
-    callback on_livestream_selected(int);
+    in-out property <string> extension;
+
+    callback on_movie_selected(int, string);
     header: category_name;
 
     property <int> columns: floor(root.width / (DemoPalette.button-width + root.button-spacing));
@@ -99,37 +102,41 @@ export component LiveStreamView inherits Page {
         width: parent.width;
         height: parent.height - DemoPalette.base-font-size * 8;
         Rectangle {
-            // clip: true;
-            for live[idx] in root.livestreams: ActionButton {
+            clip: true;
+            for movie[idx] in root.movies_streams: ActionButton {
                 x: mod(idx, root.columns) * (DemoPalette.button-width + root.button-spacing);
                 y: floor(idx / root.columns) * (self.height + root.button-spacing);
-                text: "Life Stream: " + live.name;
-                icon: live.stream_icon;
-                stream_id: live.stream_id;
-                stream_data: live;
+                text: movie.name;
+                icon: movie.stream_icon;
+                stream_id: movie.stream_id;
+                extension: movie.container_extension;
+                stream_data: movie;
                 clicked => {
-                    root.current-subpage = SubPage.Streams;
+                    // root.current-subpage = SubPage.Streams;
                     root.stream_id = self.stream_id; // Update stream_id
-                    root.on_livestream_selected(self.stream_id);
+                    root.extension = self.extension;
+                    root.on_movie_selected(self.stream_id, self.extension);
                 }
             }
         }
     }
 }
 
-export component LiveCategoriesView inherits Page {
+export component MoviesCategoriesView inherits Page {
     // header: "Categories";
     // has-back-button: true;
 
     in-out property <[Category]> categories: [];
-    in-out property <[LiveStream]> livestreams: [];
-    in-out property <LiveStream> livestream;
+    in-out property <[Movie]> movies_streams: [];
+    in-out property <Movie> movie;
     in-out property <int> stream_id;
+    in-out property <string> extension;
+
     in-out property <SubPage> current-subpage: SubPage.Categories;
     in-out property <Category> selected_category;
 
     callback on_category_selected(Category);
-    callback on_livestream_selected(int);
+    callback on_movie_selected(int, string);
 
     Flickable {
         width: parent.width;
@@ -148,10 +155,11 @@ export component LiveCategoriesView inherits Page {
         }
     }
 
-    LiveStreamView {
+    MoviesView {
         category_name: root.selected_category.category-name;
-        livestreams: root.livestreams;
+        movies_streams: root.movies_streams;
         stream_id <=> root.stream_id;
+        extension <=> root.extension;
 
         back => {
             root.current-subpage = SubPage.Categories;
@@ -161,9 +169,10 @@ export component LiveCategoriesView inherits Page {
             duration: 125ms;
             easing: ease;
         }
-        on_livestream_selected => {
+        on_movie_selected => {
             root.stream_id = stream_id;
-            root.on_livestream_selected(stream_id);
+            root.extension = extension;
+            root.on_movie_selected(stream_id, extension);
         }
     }
 }
