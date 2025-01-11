@@ -1,0 +1,183 @@
+import { DemoPalette, Page, PushButton } from "common.slint";
+import { Spinner } from "std-widgets.slint";
+
+export struct Category {
+    category_id: string,
+    category_name: string,
+    parent_id: int,
+}
+
+export struct Movie {
+    num: int,
+    name: string,
+    stream_type: string,
+    stream_id: int,
+    stream_icon: image,
+    rating_5based: float,
+    added: string,
+    is_adult: string,
+    category_id: string,
+    container_extension: string,
+    custom_sid: string,
+    direct_source: string,
+}
+
+enum SubPage { Categories, Streams }
+
+component ActionButton inherits Rectangle {
+    in property <image> icon <=> img.source;
+    in property <string> text <=> label.text;
+    in property <int> stream_id;
+    in property <Movie> stream_data;
+    in property <string> extension;
+
+    width: DemoPalette.button-width;
+    height: DemoPalette.button-height;
+
+    callback clicked(int);
+
+    VerticalLayout {
+        spacing: 10px;
+
+        Rectangle {
+            border-radius: 25px;
+            border-width: 5px;
+            // border-color: DemoPalette.secondary;
+            border-color: white;
+            background: DemoPalette.dark-mode ? DemoPalette.primary : DemoPalette.background;
+            width: DemoPalette.button-width;
+            height: self.width;
+
+            img := Image {
+                width: 130px;
+                height: 130px;
+                image-fit: contain;
+                // Without this condition, application will crash as the default image has height,width of 0
+                visible: root.icon.height != 0;
+            }
+
+            Spinner {
+                progress: 50%;
+                indeterminate: true;
+                visible: root.icon.height == 0; // Show only if icon is empty
+            }
+        }
+
+        label := Text {
+            font-size: DemoPalette.base-font-size;
+            font-weight: 800;
+            horizontal-alignment: center;
+            color: DemoPalette.text-primary;
+            wrap: word-wrap;
+        }
+    }
+
+    TouchArea {
+        clicked => {
+            root.clicked(root.stream_id)
+        }
+    }
+}
+
+export component MoviesView inherits Page {
+    has-back-button: true;
+
+    in-out property <string> category_name: "Streams"; // Default header
+    in-out property <SubPage> current-subpage: SubPage.Streams;
+    in-out property <Category> selected_category;
+    in-out property <length> button-spacing: 35px;
+
+    in-out property <[Movie]> movies: [];
+    in-out property <Movie> movie;
+    in-out property <int> stream_id;
+    in-out property <string> extension;
+
+    callback on_movie_selected(int, string);
+    header: category_name;
+    in-out property <int> rows: 0;    // Number of rows (from Rust)
+    in-out property <int> columns: 0; // Number of columns (from Rust)
+
+    // TODO: Streams view is not scrollable here 
+    Flickable {
+        width: parent.width;
+        height: parent.height - DemoPalette.base-font-size * 8;
+        Rectangle {
+            clip: true;
+            for movie[idx] in root.movies: ActionButton {
+                x: mod(idx, root.columns) * (DemoPalette.button-width + root.button-spacing);
+                y: floor(idx / root.columns) * (self.height + root.button-spacing);
+                text: movie.name;
+                icon: movie.stream_icon;
+                stream_id: movie.stream_id;
+                extension: movie.container_extension;
+                stream_data: movie;
+                clicked => {
+                    // root.current-subpage = SubPage.Streams;
+                    root.stream_id = self.stream_id; // Update stream_id
+                    root.extension = self.extension;
+                    root.on_movie_selected(self.stream_id, self.extension);
+                }
+            }
+        }
+    }
+}
+
+export component MoviesCategoriesView inherits Page {
+    // header: "Categories";
+    // has-back-button: true;
+
+    in-out property <[Category]> categories: [];
+    in-out property <[Movie]> movies: [];
+    in-out property <Movie> movie;
+    in-out property <int> stream_id;
+    in-out property <string> extension;
+
+    in-out property <SubPage> current-subpage: SubPage.Categories;
+    in-out property <Category> selected_category;
+
+    in-out property <int> rows: 0;    // Number of rows (from Rust)
+    in-out property <int> columns: 0; // Number of columns (from Rust)
+
+    callback on_category_selected(Category);
+    callback on_movie_selected(int, string);
+
+    Flickable {
+        width: parent.width;
+        height: parent.height - DemoPalette.base-font-size * 8; // Display of categories starts after Header
+
+        VerticalLayout {
+            spacing: 16px;
+            for category in root.categories: PushButton {
+                text: category.category_name;
+                primary: true;
+                clicked => {
+                    root.current-subpage = SubPage.Streams;
+                    root.on_category_selected(category);
+                }
+            }
+        }
+    }
+
+    MoviesView {
+        category_name: root.selected_category.category-name;
+        movies: root.movies;
+        stream_id <=> root.stream_id;
+        extension <=> root.extension;
+        rows <=> root.rows;
+        columns <=> root.columns;
+
+        back => {
+            root.current-subpage = SubPage.Categories;
+        }
+        x: root.current-subpage == SubPage.Streams ? 0 : parent.width + parent.x + 2px;
+        animate x {
+            duration: 125ms;
+            easing: ease;
+        }
+        on_movie_selected => {
+            root.stream_id = stream_id;
+            root.extension = extension;
+            root.on_movie_selected(stream_id, extension);
+        }
+    }
+}
