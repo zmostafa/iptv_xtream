@@ -4,6 +4,8 @@ use crate::utils;
 use eframe::egui;
 use std::sync::{Arc, Mutex};
 
+use super::series_details;
+
 pub fn render_episodes_list(
     app: &mut IPTVApp,
     ctx: &egui::Context,
@@ -12,6 +14,16 @@ pub fn render_episodes_list(
     season: String,
     category_name: &str,
 ) {
+    let serie = futures::executor::block_on(fetch_serie_info(
+        &app.client,
+        &app.api_url,
+        &app.username,
+        &app.password,
+        series_id,
+    ))
+    .unwrap();
+    app.db.save_series_info(&category_id, &series_id, &serie);
+
     let series_detail = app
         .db
         .get_series_info(&category_id, series_id)
