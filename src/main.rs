@@ -182,6 +182,7 @@ impl App {
                 let slint_streams: Vec<slint_generatedMainView::LiveStream> = live_streams
                     .into_iter()
                     .map(|stream| {
+                        // TODO: add branch to fetch from internet when images not in cache
                         let img = image_cache.load_image(&stream.stream_icon).unwrap();
                         // let _img = image::load_from_memory(&img).unwrap();
                         // let _imgg = image::ImageReader::open(img);
@@ -256,6 +257,7 @@ impl App {
                 let temp_dir = std::env::current_dir().unwrap().join("iptv_cache");
                 let socket_path = temp_dir.join("mpvsocket");
 
+                // TODO: only ONE player should be allowed.
                 Command::new("mpv")
                     .arg(&stream_url)
                     .arg("--no-terminal")
