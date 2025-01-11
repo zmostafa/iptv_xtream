@@ -88,12 +88,11 @@ export component LiveStreamView inherits Page {
 
     in-out property <[LiveStream]> livestreams: [];
     in-out property <LiveStream> livestream;
-    in-out property <int> stream_id: 100;
+    in-out property <int> stream_id;
     callback on_livestream_selected(int);
     header: category_name;
-    // Number of columns in the grid
-    property <int> columns: floor(root.width / (DemoPalette.button-width + root.button-spacing));
-    property <int> rows: floor(root.livestreams.length / columns) + 1;
+    in-out property <int> rows: 0;    // Number of rows (from Rust)
+    in-out property <int> columns: 0; // Number of columns (from Rust)
 
     // TODO: Streams view is not scrollable here 
     Flickable {
@@ -129,6 +128,9 @@ export component LiveCategoriesView inherits Page {
     in-out property <SubPage> current-subpage: SubPage.Categories;
     in-out property <Category> selected_category;
 
+    in-out property <int> rows: 0;    // Number of rows (from Rust)
+    in-out property <int> columns: 0; // Number of columns (from Rust)
+
     callback on_category_selected(Category);
     callback on_livestream_selected(int);
 
@@ -153,6 +155,8 @@ export component LiveCategoriesView inherits Page {
         category_name: root.selected_category.category-name;
         livestreams: root.livestreams;
         stream_id <=> root.stream_id;
+        rows <=> root.rows;
+        columns <=> root.columns;
 
         back => {
             root.current-subpage = SubPage.Categories;

@@ -67,8 +67,11 @@ export component MainView inherits Window {
 
     in-out property <[LiveStream]> livestreams: [];
     in-out property <LiveStream> livestream;
-    in-out property <int> stream_id: 1000;
+    in-out property <int> stream_id;
     in-out property <Category> selected_category;
+
+    in-out property <int> rows: 0;    // Number of rows (from Rust)
+    in-out property <int> columns: 0; // Number of columns (from Rust)
 
     HorizontalLayout {
         padding: 10px;
@@ -112,6 +115,8 @@ export component MainView inherits Window {
                     livestreams <=> root.livestreams;
                     stream_id <=> root.stream_id; // Bind stream_id
                     selected_category <=> root.selected_category;
+                    rows <=> root.rows;
+                    columns <=> root.columns;
 
                     on_category_selected(category) => {
                         // Handle category selection for Live TV
