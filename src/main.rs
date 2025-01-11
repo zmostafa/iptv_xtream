@@ -1,7 +1,9 @@
 slint::include_modules!();
 mod api;
+mod app;
 mod db;
 mod models;
+mod utils;
 
 use crate::api::authenticate;
 use crate::db::{Database, ImageCache};
@@ -14,7 +16,7 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::Duration;
 
-use slint::{Image, ModelRc, Rgba8Pixel, SharedPixelBuffer, VecModel};
+use slint::{Image, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, VecModel};
 
 struct App {
     main_view: MainView,
@@ -159,7 +161,9 @@ impl App {
         // Handle category selection
         let db = Arc::clone(&self.db);
         let image_cache = Arc::clone(&image_cache);
+        let client = Arc::clone(&self.client);
         let main_view_weak = self.main_view.as_weak();
+
         self.main_view
             .on_handle_category_selected(move |page_number, category| {
                 let main_view = main_view_weak.unwrap();
@@ -176,43 +180,103 @@ impl App {
                 let parent_id = category.parent_id;
 
                 log::info!("Category ID: {}, Parent ID: {}", category_id, parent_id);
+
                 // Handle category selection (e.g., fetch detailed content)
                 let live_streams = db.get_live_streams(&category_id);
+
                 // Convert streams to Slint-compatible format
                 let slint_streams: Vec<slint_generatedMainView::LiveStream> = live_streams
                     .into_iter()
                     .map(|stream| {
-                        // TODO: add branch to fetch from internet when images not in cache
-                        let img = image_cache.load_image(&stream.stream_icon).unwrap();
-                        // let _img = image::load_from_memory(&img).unwrap();
-                        // let _imgg = image::ImageReader::open(img);
-                        let _img = match image::load_from_memory(&img) {
-                            Ok(_img) => {
-                                // Convert image to rgba8 ..... cool.
-                                let _img = _img.into_rgba8();
-                                _img
-                            }
-                            Err(err) => {
-                                log::error!("Failed to read image. {}", err);
-                                image::ImageBuffer::new(0, 0)
-                            }
-                        };
-                        
-                        log::warn!("Stream ID: {}", &stream.stream_id);
-                        log::warn!("Stream ID after casting: {}", stream.stream_id as i32);
+                        // Try to load the image from the cache
+                        let img = image_cache
+                            .load_image(&stream.stream_icon)
+                            .unwrap_or_default();
 
+                        // If the image is not in the cache, download it asynchronously
+                        if img.is_empty() {
+                            let client_clone = Arc::clone(&client);
+                            let image_cache_clone = Arc::clone(&image_cache);
+                            let stream_icon = stream.stream_icon.clone();
+                            let main_view_weak = main_view_weak.clone();
+                            let stream_id = stream.stream_id;
+
+                            // Spawn a background task to download the image
+                            slint::spawn_local(Compat::new(async move {
+                                if let Err(err) = utils::fetch_and_cache_image(
+                                    (*client_clone).clone(),
+                                    (*image_cache_clone).clone(),
+                                    &stream_icon,
+                                )
+                                .await
+                                {
+                                    log::error!("Failed to download image: {}", err);
+                                } else {
+                                    // Image downloaded successfully, update the UI
+                                    slint::invoke_from_event_loop(move || {
+                                        if let Some(main_view) = main_view_weak.upgrade() {
+                                            // Find the stream in the current list and update its image
+                                            let mut streams = main_view
+                                                .get_livestreams()
+                                                .iter()
+                                                .collect::<Vec<_>>();
+                                            if let Some(stream) = streams
+                                                .iter_mut()
+                                                .find(|s| s.stream_id == stream_id as i32)
+                                            {
+                                                if let Ok(img) =
+                                                    image_cache_clone.load_image(&stream_icon)
+                                                {
+                                                    if let Ok(image) = image::load_from_memory(&img)
+                                                    {
+                                                        let image = image.into_rgba8();
+                                                        stream.stream_icon =
+                                                            Image::from_rgba8(SharedPixelBuffer::<
+                                                                Rgba8Pixel,
+                                                            >::clone_from_slice(
+                                                                &image.as_bytes(),
+                                                                image.width(),
+                                                                image.height(),
+                                                            ));
+                                                    }
+                                                }
+                                            }
+                                            // Update the UI with the new stream list
+                                            main_view.set_livestreams(
+                                                ModelRc::new(VecModel::from(streams)).into(),
+                                            );
+                                        }
+                                    })
+                                    .unwrap();
+                                }
+                            }))
+                            .unwrap();
+                        }
+
+                        // Create the LiveStream object with a placeholder image
                         slint_generatedMainView::LiveStream {
                             num: stream.num as i32,
                             name: stream.name.into(),
                             stream_type: stream.stream_type.into(),
                             stream_id: stream.stream_id as i32,
-                            stream_icon: Image::from_rgba8(
-                                SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
-                                    &_img.as_bytes(),
-                                    _img.width(),
-                                    _img.height(),
-                                ),
-                            ),
+                            stream_icon: if img.is_empty() {
+                                // Use a placeholder image if the image is not yet downloaded
+                                Image::default()
+                            } else {
+                                // Use the cached image
+                                if let Ok(image) = image::load_from_memory(&img) {
+                                    let image = image.into_rgba8();
+                                    Image::from_rgba8(
+                                        SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+                                            &image.as_bytes(),
+                                            image.width(),
+                                            image.height(),
+                                        ),
+                                    )
+                                } else {
+                                    Image::default()
+                                }
+                            },
                             epg_channel_id: stream.epg_channel_id.unwrap_or_default().into(),
                             added: stream.added.unwrap_or_default().into(),
                             is_adult: stream.is_adult.unwrap_or_default().into(),
@@ -225,15 +289,10 @@ impl App {
                         }
                     })
                     .collect();
-                // let main_view = main_view_weak.clone();
-                log::info!("Setting LiveStreams for this category");
-                for sstream in &slint_streams {
-                    log::warn!("Stream ID in Slint Object : {}", sstream.stream_id);
-                }
+
+                // Update the UI with the initial list of streams (some images may be placeholders)
                 main_view.set_livestreams(ModelRc::new(VecModel::from(slint_streams)).into());
-                
                 main_view.set_selected_category(category);
-                // main_view.set_current_subpage(slint_generatedMainView::SubPage::Streams);
             });
 
         let db = Arc::clone(&self.db);

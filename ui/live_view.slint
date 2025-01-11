@@ -100,22 +100,20 @@ export component LiveStreamView inherits Page {
         width: parent.width;
         height: parent.height - DemoPalette.base-font-size * 8;
         Rectangle {
-            // HorizontalLayout {
-            // clip: true;
+            clip: true;
             for live[idx] in root.livestreams: ActionButton {
                 x: mod(idx, root.columns) * (DemoPalette.button-width + root.button-spacing);
                 y: floor(idx / root.columns) * (self.height + root.button-spacing);
                 text: live.name;
-                    icon: live.stream_icon;
-                    stream_id: live.stream_id;
-                    stream_data: live;
-                    clicked => {
+                icon: live.stream_icon;
+                stream_id: live.stream_id;
+                stream_data: live;
+                clicked => {
                     // root.current-subpage = SubPage.Streams;
                     root.stream_id = self.stream_id; // Update stream_id
                     root.on_livestream_selected(self.stream_id);
-                    }
                 }
-            // }
+            }
         }
     }
 }
