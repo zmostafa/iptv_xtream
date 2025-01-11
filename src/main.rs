@@ -194,7 +194,7 @@ impl App {
                             }
                             Err(err) => {
                                 log::error!("Failed to read image. {}", err);
-                                image::ImageBuffer::new(1, 1)
+                                image::ImageBuffer::new(0, 0)
                             }
                         };
                         

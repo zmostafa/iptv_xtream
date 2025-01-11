@@ -1,5 +1,5 @@
 import { DemoPalette, Page, PushButton } from "common.slint";
-
+import { Spinner } from "std-widgets.slint";
 export struct Category {
     category_id: string,
     category_name: string,
@@ -30,7 +30,6 @@ component ActionButton inherits Rectangle {
     in property <int> stream_id: 10;
     in property <LiveStream> stream_data;
 
-
     width: DemoPalette.button-width;
     height: DemoPalette.button-height;
 
@@ -52,6 +51,14 @@ component ActionButton inherits Rectangle {
                 width: 130px;
                 height: 130px;
                 image-fit: contain;
+                // Without this condition, application will crash as the default image has height,width of 0
+                visible: root.icon.height != 0;
+            }
+
+            Spinner {
+                progress: 50%;
+                indeterminate: true;
+                visible: root.icon.height == 0; // Show only if icon is empty
             }
         }
 
@@ -86,25 +93,29 @@ export component LiveStreamView inherits Page {
     header: category_name;
     // Number of columns in the grid
     property <int> columns: floor(root.width / (DemoPalette.button-width + root.button-spacing));
+    property <int> rows: floor(root.livestreams.length / columns) + 1;
 
     // TODO: Streams view is not scrollable here 
     Flickable {
         width: parent.width;
         height: parent.height - DemoPalette.base-font-size * 8;
         Rectangle {
+            // HorizontalLayout {
+            // clip: true;
             for live[idx] in root.livestreams: ActionButton {
                 x: mod(idx, root.columns) * (DemoPalette.button-width + root.button-spacing);
                 y: floor(idx / root.columns) * (self.height + root.button-spacing);
                 text: live.name;
-                icon: live.stream_icon;
-                stream_id: live.stream_id;
-                stream_data: live;
-                clicked => {
+                    icon: live.stream_icon;
+                    stream_id: live.stream_id;
+                    stream_data: live;
+                    clicked => {
                     // root.current-subpage = SubPage.Streams;
                     root.stream_id = self.stream_id; // Update stream_id
                     root.on_livestream_selected(self.stream_id);
+                    }
                 }
-            }
+            // }
         }
     }
 }
@@ -123,7 +134,6 @@ export component LiveCategoriesView inherits Page {
     callback on_category_selected(Category);
     callback on_livestream_selected(int);
 
-
     Flickable {
         width: parent.width;
         height: parent.height - DemoPalette.base-font-size * 8; // Display of categories starts after Header
@@ -139,24 +149,24 @@ export component LiveCategoriesView inherits Page {
                 }
             }
         }
+    }
 
-        LiveStreamView {
-            category_name: root.selected_category.category-name;
-            livestreams: root.livestreams;
-            stream_id <=> root.stream_id; // Bind stream_id
+    LiveStreamView {
+        category_name: root.selected_category.category-name;
+        livestreams: root.livestreams;
+        stream_id <=> root.stream_id;
 
-            back => {
-                root.current-subpage = SubPage.Categories;
-            }
-            x: root.current-subpage == SubPage.Streams ? 0 : parent.width + parent.x + 2px;
-            animate x {
-                duration: 125ms;
-                easing: ease;
-            }
-            on_livestream_selected => {
-                root.stream_id = stream_id; // Update stream_id
-                root.on_livestream_selected(stream_id);
-            }
+        back => {
+            root.current-subpage = SubPage.Categories;
+        }
+        x: root.current-subpage == SubPage.Streams ? 0 : parent.width + parent.x + 2px;
+        animate x {
+            duration: 125ms;
+            easing: ease;
+        }
+        on_livestream_selected => {
+            root.stream_id = stream_id;
+            root.on_livestream_selected(stream_id);
         }
     }
 }
