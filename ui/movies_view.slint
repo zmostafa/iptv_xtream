@@ -1,5 +1,5 @@
 import { DemoPalette, Page, PushButton } from "common.slint";
-import { Spinner } from "std-widgets.slint";
+import { Spinner, ScrollView } from "std-widgets.slint";
 
 export struct Category {
     category_id: string,
@@ -96,14 +96,14 @@ export component MoviesView inherits Page {
     callback on_movie_selected(int, string);
     header: category_name;
 
-    property <int> columns: floor(root.width / (DemoPalette.button-width + root.button-spacing));
+    property <int> columns: ceil(root.width / (DemoPalette.button-width + root.button-spacing));
 
-    // TODO: Streams view is not scrollable here 
-    Flickable {
+    ScrollView {
         width: parent.width;
         height: parent.height - DemoPalette.base-font-size * 8;
+        viewport-height: ceil(root.movies_streams.length / root.columns) * (DemoPalette.button-height + root.button-spacing); // Dynamic height based on content 
+        
         Rectangle {
-            clip: true;
             for movie[idx] in root.movies_streams: ActionButton {
                 x: mod(idx, root.columns) * (DemoPalette.button-width + root.button-spacing);
                 y: floor(idx / root.columns) * (self.height + root.button-spacing);
