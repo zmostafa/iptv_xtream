@@ -103,12 +103,12 @@ export component LiveStreamView inherits Page {
             for live[idx] in root.livestreams: ActionButton {
                 x: mod(idx, root.columns) * (DemoPalette.button-width + root.button-spacing);
                 y: floor(idx / root.columns) * (self.height + root.button-spacing);
-                text: "Life Stream: " + live.name;
+                text: live.name;
                 icon: live.stream_icon;
                 stream_id: live.stream_id;
                 stream_data: live;
                 clicked => {
-                    root.current-subpage = SubPage.Streams;
+                    // root.current-subpage = SubPage.Streams;
                     root.stream_id = self.stream_id; // Update stream_id
                     root.on_livestream_selected(self.stream_id);
                 }
