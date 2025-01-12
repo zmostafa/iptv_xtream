@@ -310,7 +310,7 @@ impl App {
                         let movies_streams = db.get_movies_streams(&category_id);
 
                         // Convert streams to Slint-compatible format
-                        let slint_streams: Vec<slint_generatedMainView::Movie> = movies_streams
+                        let mut slint_streams: Vec<slint_generatedMainView::Movie> = movies_streams
                             .into_iter()
                             .map(|stream| {
                                 // Try to load the image from the cache
@@ -417,10 +417,11 @@ impl App {
                             })
                             .collect();
 
+                        slint_streams.sort_by(|a, b| b.added.cmp(&a.added)); // Sort by `added` date in descending order
+
                         // Update the UI with the initial list of streams (some images may be placeholders)
-                        main_view.set_movies_streams(
-                            ModelRc::new(VecModel::from(slint_streams)).into(),
-                        );
+                        main_view
+                            .set_movies_streams(ModelRc::new(VecModel::from(slint_streams)).into());
                     }
                     2 => {}
                     _ => {
