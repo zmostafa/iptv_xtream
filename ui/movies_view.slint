@@ -1,6 +1,6 @@
 import { DemoPalette, Page, PushButton } from "common.slint";
 import { Spinner, ScrollView } from "std-widgets.slint";
-
+import { MoviePage } from "movie_page.slint";
 export struct Category {
     category_id: string,
     category_name: string,
@@ -22,7 +22,7 @@ export struct Movie {
     direct_source: string,
 }
 
-enum SubPage { Categories, Streams }
+enum SubPage { Categories, Streams, MovieSite }
 
 component ActionButton inherits Rectangle {
     in property <image> icon <=> img.source;
@@ -93,7 +93,11 @@ export component MoviesView inherits Page {
     in-out property <int> stream_id;
     in-out property <string> extension;
 
+    in-out property <string> movie-name;
+    in-out property <image> cover;
+
     callback on_movie_selected(int, string);
+    callback movie_display(string, image);
     header: category_name;
 
     property <int> columns: ceil(root.width / (DemoPalette.button-width + root.button-spacing));
@@ -113,12 +117,33 @@ export component MoviesView inherits Page {
                 extension: movie.container_extension;
                 stream_data: movie;
                 clicked => {
+                    root.current-subpage = SubPage.MovieSite;
+
+                    root.movie-name = movie.name;
+                    root.cover = movie.stream-icon;
                     // root.current-subpage = SubPage.Streams;
                     root.stream_id = self.stream_id; // Update stream_id
                     root.extension = self.extension;
-                    root.on_movie_selected(self.stream_id, self.extension);
+                    // root.on_movie_selected(self.stream_id, self.extension);
+                    root.movie_display(movie.name, movie.stream-icon);
                 }
             }
+        }
+    }
+    MoviePage {
+        width: parent.width;
+        height: parent.height;
+        movie_name: root.movie-name;
+        img-background-1: root.cover;
+        img-poster-2: root.cover;
+
+        back => {
+            root.current-subpage = SubPage.Streams;
+        }
+        x: root.current-subpage == SubPage.MovieSite ? 0 : parent.width + parent.x + 2px;
+        animate x {
+            duration: 125ms;
+            easing: ease;
         }
     }
 }

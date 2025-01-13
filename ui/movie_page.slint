@@ -1,0 +1,222 @@
+import { Button, ScrollView } from "std-widgets.slint";
+import { DemoPalette, Page, PushButton } from "common.slint";
+// Define the MainContent component
+enum SubPage { Categories, Streams, MovieSite }
+
+component MainContent inherits Rectangle {
+    in property <image> img-background <=> img-background.source;
+    in property <image> img-poster <=> img-poster.source;
+
+
+
+    // width: root.width;
+    // height: root.height;
+    padding: 20px;
+    background: transparent;
+    img-background :=Image {
+        width: parent.width;
+        height: parent.height;
+            // source: url("movie_poster_url_from_database");
+            // source: @image-url("../assets/background.jpg");
+        image-fit: cover;
+    }
+
+    HorizontalLayout {
+        spacing: 20px;
+        // Left Side: Movie Poster and Play Button
+        VerticalLayout {
+            spacing: 10px;
+            // keep playing with these values until it fits
+            y:100px;
+            padding: 150px;
+
+            // Movie Poster
+            Rectangle {
+                width: 200px;
+                height: parent.height;
+                background: #6284FF;
+
+                img-poster:= Image {
+                    width: 200px;
+                // x:0px;
+                y: 0px;
+                    height: 320px;
+                // source: url("movie_poster_url_from_database");
+                // source: @image-url("../assets/background.jpg");
+                    image-fit: fill;
+                }
+
+            // Play Button
+            Image {
+                    width: 50px;
+                    height: 50px;
+                    y: 320px;
+                // source: url("movie_poster_url_from_database");
+                source: @image-url("../assets/play-icon.svg");
+                    colorize: white;
+                }
+            }
+        }
+
+        // Right Side: Movie Info and Buttons
+        VerticalLayout {
+            // spacing: 10px;
+
+            // Movie Info
+            // Text {
+            //     text: "Release Date: 2008-06-06";
+            //     font-size: 16px;
+            //     color: white;
+            // }
+
+            // Text {
+            //     text: "Runtime: 92 minutes";
+            //     font-size: 16px;
+            //     color: white;
+            // }
+
+            // Text {
+            //     text: "Genre: Animation, Action, Adventure";
+            //     font-size: 16px;
+            //     color: white;
+            // }
+
+            // Text {
+            //     text: "Rating: 7.2/10";
+            //     font-size: 16px;
+            //     color: white;
+            // }
+
+            // Favorite and Download Buttons
+            HorizontalLayout {
+                spacing: 10px;
+
+                Image {
+                    width: 50px;
+                    height: 50px;
+                    // source: url("movie_poster_url_from_database");
+                    source: @image-url("../assets/favorite-icon.svg");
+                    colorize: white;
+                }
+
+                Image {
+                    width: 50px;
+                    height: 50px;
+                    // source: url("movie_poster_url_from_database");
+                    source: @image-url("../assets/download-icon.svg");
+                    colorize: white;
+                }
+            }
+        }
+    }
+}
+
+// Define the CastSection component
+component CastSection inherits Rectangle {
+    // width: parent.width;
+    height: 650px;
+    padding: 20px;
+
+    VerticalLayout {
+        spacing: 10px;
+
+        Text {
+            text: "Cast";
+            font-size: 20px;
+            // font-weight: bold;
+        }
+
+        ScrollView {
+            height: 150px;
+            x: 10px;
+            HorizontalLayout {
+                spacing: 10px;
+
+            // Example Cast Member
+            VerticalLayout {
+                    spacing: 5px;
+
+                    Image {
+                        width: 80px;
+                        height: 80px;
+                        source: @image-url("../assets/tv-icon.svg");
+                    }
+
+                    Text {
+                        text: "Jack Black";
+                        font-size: 14px;
+                    }
+                }
+
+            // Add more cast members here...
+        }
+        }
+    }
+}
+
+// Define the MoviePage component
+export component MoviePage inherits Page {
+    has-back-button: true;
+    in-out property <string> movie_name: "Kung Fu Panda"; // Default header
+    in-out property <image> img-background-1; 
+    in-out property <image> img-poster-2;
+    in-out property <SubPage> current-subpage: SubPage.MovieSite;
+
+    header: movie_name;
+    
+
+
+
+    // width: 800px;
+    // height: 600px;
+
+    // Background Image
+    // background-image: url("background_image_url_from_database");
+    // background-size: cover;
+
+    // Header
+    Rectangle {
+        width: parent.width;
+        // height: 590px;
+        height: parent.height;
+        padding: 10px;
+
+        // HorizontalLayout {
+        //     spacing: 10px;
+        //     x: 0cm;
+        //     y: 0cm;
+        //     height: 60px;
+
+            
+
+        //     // Movie Name
+        //     Text {
+        //         text: "Kung Fu Panda";
+        //         font-size: 24px;
+        //         // font-weight: bold;
+        //     }
+        // }
+
+        // Main Content
+    MainContent {
+            width: parent.width;
+            // height: parent.height;
+            height: 50%;
+            img-background: img-background-1;
+            img-poster: img-poster-2;
+            // height: parent.height - 60px; // Subtract header height
+            // height: 370px;
+            x: 0px;
+            y: 60px;
+        }
+
+    // Cast Section
+    CastSection {
+            width: parent.width;
+            drop-shadow-blur: 0cm;
+            height: 50px;
+            x: 0px;
+            y: 450px;
+        }
+    }
+}
