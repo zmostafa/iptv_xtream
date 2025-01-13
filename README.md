@@ -1,18 +1,32 @@
-# iptv_xtream
-IPTV Player written in Rust 
+# IPTV XTREAM
 
-[] Add new player embdded in gui `ffmpeg`
+IPTV Player written in Rust.
+### ⚡ Notification
 
-[] Fix fetching content
+I am building this app for fun and also for my Rust learning journy, and I do not have the experience to design a nice UX, later also will be a huge refactoring as now I consider it a PoC project.
 
-[x] Fetch content only when required.
 
-[x] Add caching
+The app comes with two UI falvors, one using `egui` crate and the other using `slint`
 
-[] Model gui on Series Troxide, but Arabic support using iced is not guranteed. 
+- [ ] Add new player embdded in gui `ffmpeg`
 
-[x] Add downloading content
+- [x] Fix fetching content
 
-[] use libmpv to integrate player in egui
+- [x] Fetch content only when required.
 
-[] port gui to slint -- supports arabic
+- [x] Add caching (Done Partially)
+
+- [ ] Model gui on Series Troxide, but Arabic support using iced is not guranteed. 
+
+- [x] Add downloading content
+
+- [ ] use libmpv to integrate player in egui
+
+- [ ] port gui to slint -- supports arabic
+
+### ⚠️ Limitations
+Ui in `egui` does not display arabic letters well, due to the fact its lack of RTL support.
+
+### ⚠️ Warning
+
+This application does not provide content or TV channels, it is a player application which streams from IPTV providers.
