@@ -55,9 +55,6 @@ export component MainView inherits Window {
     default-font-size: DemoPalette.base-font-size;
 
     callback fetch-data();
-    callback open-movies();
-    callback open-series();
-    callback open-live-tv();
     callback login(string, string, string); // Forward login callback to login_view
     callback handle_category_selected(int, Category);
     callback handle_livestream_selected(int);

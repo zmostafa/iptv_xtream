@@ -6,7 +6,10 @@ enum SubPage { Categories, Streams, MovieSite }
 component MainContent inherits Rectangle {
     in property <image> img-background <=> img-background.source;
     in property <image> img-poster <=> img-poster.source;
+    in property <string> extension;
+    in property <int> stream_id;
 
+    callback on_movie_selected(int, string);
 
     padding: 20px;
     background: transparent;
@@ -43,6 +46,12 @@ component MainContent inherits Rectangle {
                     y: 320px;
                     source: @image-url("../assets/play-icon.svg");
                     colorize: white;
+                    TouchArea {
+                        clicked => {
+                            // debug("Calling on_movie_selected from MainComponent");
+                            root.on_movie_selected(root.stream_id, root.extension);
+                        }
+                    }
                 }
             }
         }
@@ -143,11 +152,18 @@ component CastSection inherits Rectangle {
 export component MoviePage inherits Page {
     has-back-button: true;
     in-out property <string> movie_name: "Movie-Name"; // Default header
-    in-out property <image> img-background-1;
-    in-out property <image> img-poster-2;
+    in-out property <image> img-background;
+    in-out property <image> img-poster;
+    in-out property <string> extension;
+    in-out property <int> stream_id;
     in-out property <SubPage> current-subpage: SubPage.MovieSite;
 
+    callback on_movie_selected(int, string);
+
+
     header: movie_name;
+    extension: extension;
+    stream_id: stream_id;
 
     // Header
     Rectangle {
@@ -163,10 +179,14 @@ export component MoviePage inherits Page {
                 width: parent.width;
                 height: parent.height;
                 // height: 60%;
-                img-background: img-background-1;
-                img-poster: img-poster-2;
+                img-background: img-background;
+                img-poster: img-poster;
                 // x: 0px;
                 // y: 80px;
+                on_movie_selected => {
+                    // debug("Calling on_movie_selected from MoviePage");
+                    root.on_movie_selected(stream_id, extension);
+                }
             }
         }
 

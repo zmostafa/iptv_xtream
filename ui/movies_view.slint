@@ -130,12 +130,15 @@ export component MoviesView inherits Page {
             }
         }
     }
+
     MoviePage {
         width: parent.width;
         height: parent.height;
         movie_name: root.movie-name;
-        img-background-1: root.cover;
-        img-poster-2: root.cover;
+        stream_id: root.stream_id;
+        extension: root.extension;
+        img-background: root.cover;
+        img-poster: root.cover;
 
         back => {
             root.current-subpage = SubPage.Streams;
@@ -144,6 +147,12 @@ export component MoviesView inherits Page {
         animate x {
             duration: 125ms;
             easing: ease;
+        }
+        on_movie_selected => {
+            // debug("Calling on_movie_selected from MoviesView");
+            root.stream_id = stream_id;
+            root.extension = extension;
+            root.on_movie_selected(stream_id, extension);
         }
     }
 }
@@ -196,6 +205,7 @@ export component MoviesCategoriesView inherits Page {
             easing: ease;
         }
         on_movie_selected => {
+            // debug("Calling on_movie_selected from MoviesCategories");
             root.stream_id = stream_id;
             root.extension = extension;
             root.on_movie_selected(stream_id, extension);
