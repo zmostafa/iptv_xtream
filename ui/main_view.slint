@@ -186,7 +186,7 @@ export component MainView inherits Window {
                 // }
 
                 Page {
-                    header: "Update Content";
+                    header: "Favorites";
                     // page number is matching the y index in the position for the icon
                     property <int> pageNumber: 4;
                     y: calcPageY(pageNumber);
@@ -201,7 +201,8 @@ export component MainView inherits Window {
                     }
                 }
 
-                SettingsPage {
+                Page {
+                    header: "Search";
                     // page number is matching the y index in the position for the icon
                     property <int> pageNumber: 5;
                     y: calcPageY(pageNumber);
@@ -216,9 +217,40 @@ export component MainView inherits Window {
                     }
                 }
 
+                Page {
+                    header: "Update Content";
+                    // page number is matching the y index in the position for the icon
+                    property <int> pageNumber: 7;
+                    y: calcPageY(pageNumber);
+                    opacity: root.active-page == pageNumber ? 1 : 0;
+                    animate y {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                    animate opacity {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                }
+
+                SettingsPage {
+                    // page number is matching the y index in the position for the icon
+                    property <int> pageNumber: 8;
+                    y: calcPageY(pageNumber);
+                    opacity: root.active-page == pageNumber ? 1 : 0;
+                    animate y {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                    animate opacity {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                }
+
                 LoginView {
                     // page number is matching the y index in the position for the icon
-                    property <int> pageNumber: 6;
+                    property <int> pageNumber: 9;
                     y: calcPageY(pageNumber);
                     opacity: root.active-page == pageNumber ? 1 : 0;
                     animate y {
@@ -246,6 +278,7 @@ export component MainView inherits Window {
 
     sidebar := Rectangle {
         function icon-y(index: int) -> length {
+            debug("Index: ", index);
             return 100px // top padding
                 + index * 72px;
         }
@@ -297,7 +330,7 @@ export component MainView inherits Window {
             x: 16px;
             height: 35px;
             width: 30px;
-            icon: @image-url("../assets/update-icon.svg");
+            icon: @image-url("../assets/favorite-icon.svg");
             active: root.active-page == 4;
         }
 
@@ -312,21 +345,59 @@ export component MainView inherits Window {
             x: 16px;
             height: 35px;
             width: 30px;
-            icon: @image-url("../assets/settings.svg");
+            icon: @image-url("../assets/search-icon.svg");
             active: root.active-page == 5;
+        }
+
+        Rectangle {
+            y: sidebar.icon-y(6) + 17px;
+            x: DemoPalette.side-bar-margin + 8px;
+            background: DemoPalette.background;
+            height: 2px;
+            width: 37px;
         }
 
         SideBarIcon {
             activate => {
-                root.active-page = 6;
+                if root.sidebar-enabled {
+                    root.active-page = 7;
+                }
             }
 
-            y: sidebar.icon-y(6);
+            y: sidebar.icon-y(7);
+            x: 16px;
+            height: 35px;
+            width: 30px;
+            icon: @image-url("../assets/update-icon.svg");
+            active: root.active-page == 7;
+        }
+
+        SideBarIcon {
+            activate => {
+                if root.sidebar-enabled {
+                    root.active-page = 8;
+                }
+            }
+
+            y: sidebar.icon-y(8);
+            x: 16px;
+            height: 35px;
+            width: 30px;
+            icon: @image-url("../assets/settings.svg");
+            active: root.active-page == 8;
+        }
+
+        SideBarIcon {
+            activate => {
+                root.active-page = 9;
+            }
+
+            y: sidebar.icon-y(9);
             x: 16px;
             height: 35px;
             width: 30px;
             icon: @image-url("../assets/login-icon.svg");
-            active: root.active-page == 6;
+            active: root.active-page == 9;
         }
     }
 }
