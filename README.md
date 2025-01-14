@@ -5,6 +5,14 @@ IPTV Player written in Rust.
 
 I am building this app for fun and also for my Rust learning journy, and I do not have the experience to design a nice UX, later also will be a huge refactoring as now I consider it a PoC project.
 
+#### Building app with  `egui`
+
+To build the `egui` version, you need to checkout branch `dev/v1.2` then run `cargo run --release` 
+
+#### Building app with  `slint` 
+
+To build the `egui` version, you need to checkout branch `dev/vSlint` then run `cargo run --release` 
+
 
 The app comes with two UI falvors, one using `egui` crate and the other using `slint`
 
