@@ -1,6 +1,6 @@
 # IPTV XTREAM
 
-IPTV Player written in Rust.
+IPTV Player with support for xtream APIs written in Rust.
 ### ⚡ Notification
 
 I am building this app for fun and also for my Rust learning journy, and I do not have the experience to design a nice UX, later also will be a huge refactoring as now I consider it a PoC project.
