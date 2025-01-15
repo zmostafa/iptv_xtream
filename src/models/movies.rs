@@ -1,4 +1,5 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::collections::HashMap;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Category {
@@ -63,4 +64,114 @@ impl<'de> Deserialize<'de> for StringOrFloat {
 pub struct RecentlyWatchedMovie {
     pub category_id: String,
     pub stream_id: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MovieResponse {
+    pub info: MovieInfo,
+    pub movie_data: MovieData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MovieInfo {
+    pub movie_image: String,
+    pub tmdb_id: String,
+    pub backdrop: String,
+    pub youtube_trailer: String,
+    pub genre: String,
+    pub plot: String,
+    pub cast: String,
+    pub rating: String,
+    pub director: String,
+    pub releasedate: String,
+    pub backdrop_path: Vec<String>,
+    pub duration_secs: u64,
+    pub duration: String,
+    pub video: VideoInfo,
+    pub audio: AudioInfo,
+    pub bitrate: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VideoInfo {
+    pub index: u64,
+    pub codec_name: String,
+    pub codec_long_name: String,
+    pub profile: String,
+    pub codec_type: String,
+    pub codec_time_base: String,
+    pub codec_tag_string: String,
+    pub codec_tag: String,
+    pub width: u64,
+    pub height: u64,
+    pub coded_width: u64,
+    pub coded_height: u64,
+    pub has_b_frames: u64,
+    pub pix_fmt: String,
+    pub level: u64,
+    pub color_range: String,
+    pub chroma_location: String,
+    pub field_order: String,
+    pub refs: u64,
+    pub is_avc: String,
+    pub nal_length_size: String,
+    pub r_frame_rate: String,
+    pub avg_frame_rate: String,
+    pub time_base: String,
+    pub start_pts: u64,
+    pub start_time: String,
+    pub bits_per_raw_sample: String,
+    pub disposition: Disposition,
+    pub tags: HashMap<String, String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AudioInfo {
+    pub index: u64,
+    pub codec_name: String,
+    pub codec_long_name: String,
+    pub profile: String,
+    pub codec_type: String,
+    pub codec_time_base: String,
+    pub codec_tag_string: String,
+    pub codec_tag: String,
+    pub sample_fmt: String,
+    pub sample_rate: String,
+    pub channels: u64,
+    pub channel_layout: String,
+    pub bits_per_sample: u64,
+    pub r_frame_rate: String,
+    pub avg_frame_rate: String,
+    pub time_base: String,
+    pub start_pts: u64,
+    pub start_time: String,
+    pub disposition: Disposition,
+    pub tags: HashMap<String, String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Disposition {
+    pub default: u64,
+    pub dub: u64,
+    pub original: u64,
+    pub comment: u64,
+    pub lyrics: u64,
+    pub karaoke: u64,
+    pub forced: u64,
+    pub hearing_impaired: u64,
+    pub visual_impaired: u64,
+    pub clean_effects: u64,
+    pub attached_pic: u64,
+    pub timed_thumbnails: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MovieData {
+    pub stream_id: u64,
+    pub name: String,
+    pub added: String,
+    pub category_id: String,
+    pub container_extension: String,
+    pub custom_sid: String,
+    pub direct_source: String,
 }
