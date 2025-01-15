@@ -1,6 +1,6 @@
 use crate::api::error::ApiError;
 use crate::models::live::{Category, LiveStream};
-use crate::models::movies::Movie;
+use crate::models::movies::{Movie,MovieResponse};
 use crate::models::series::{Series, SeriesInfo};
 use isahc::prelude::*;
 use isahc::HttpClient;
@@ -333,6 +333,37 @@ pub async fn fetch_all_movies(
         })?;
 
         serde_json::from_str::<Vec<Movie>>(&raw_body)
+            .map_err(|e| ApiError::InvalidResponse(format!("Failed to parse Movies: {}", e)))
+    } else {
+        Err(ApiError::Unknown(format!(
+            "Unexpected status code: {}",
+            response.status()
+        )))
+    }
+}
+
+pub async fn fetch_movie_info(
+    client: &HttpClient,
+    api_url: &str,
+    username: &str,
+    password: &str,
+    movie_id: &i64,
+) -> Result<Vec<MovieResponse>, ApiError> {
+    let url = format!(
+        "{}/player_api.php?username={}&password={}&action=get_vod_info&vod_id={}",
+        api_url, username, password, movie_id
+    );
+
+    let mut response = client
+        .get(&url)
+        .map_err(|e| ApiError::NetworkError(format!("Failed to fetch all movies: {}", e)))?;
+
+    if response.status().is_success() {
+        let raw_body = response.text().map_err(|e| {
+            ApiError::InvalidResponse(format!("Failed to read response body: {}", e))
+        })?;
+
+        serde_json::from_str::<Vec<MovieResponse>>(&raw_body)
             .map_err(|e| ApiError::InvalidResponse(format!("Failed to parse Movies: {}", e)))
     } else {
         Err(ApiError::Unknown(format!(
