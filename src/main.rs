@@ -313,21 +313,18 @@ impl App {
                         let mut slint_streams: Vec<slint_generatedMainView::Movie> = movies_streams
                             .into_iter()
                             .map(|stream| {
-                                // Try to load the image from the cache
-                                let img = image_cache
-                                    .load_image(&stream.stream_icon)
-                                    .unwrap_or_default();
-
                                 // If the image is not in the cache, download it asynchronously
-                                if !image_cache.is_cached(&stream.stream_icon) {
-                                    let client_clone = Arc::clone(&client);
-                                    let image_cache_clone = Arc::clone(&image_cache);
-                                    let stream_icon = stream.stream_icon.clone();
-                                    let main_view_weak = main_view_weak.clone();
-                                    let stream_id = stream.stream_id;
+                                // if !image_cache.is_cached(&stream.stream_icon) {
+                                let client_clone = Arc::clone(&client);
+                                let image_cache_clone = Arc::clone(&image_cache);
+                                let stream_icon = stream.stream_icon.clone();
+                                let main_view_weak = main_view_weak.clone();
+                                let stream_id = stream.stream_id;
 
-                                    // Spawn a background task to download the image
-                                    slint::spawn_local(Compat::new(async move {
+                                // Spawn a background task to download the image
+                                slint::spawn_local(Compat::new(async move {
+                                    
+                                    if !image_cache_clone.is_cached(&stream_icon) {
                                         if let Err(err) = utils::fetch_and_cache_image(
                                             (*client_clone).clone(),
                                             (*image_cache_clone).clone(),
@@ -336,51 +333,54 @@ impl App {
                                         .await
                                         {
                                             log::error!("Failed to download image: {}", err);
-                                        } else {
-                                            // Image downloaded successfully, update the UI
-                                            slint::invoke_from_event_loop(move || {
-                                                if let Some(main_view) = main_view_weak.upgrade() {
-                                                    // Find the stream in the current list and update its image
-                                                    let mut streams = main_view
-                                                        .get_movies_streams()
-                                                        .iter()
-                                                        .collect::<Vec<_>>();
-                                                    if let Some(stream) = streams
-                                                        .iter_mut()
-                                                        .find(|s| s.stream_id == stream_id as i32)
-                                                    {
-                                                        if let Ok(img) = image_cache_clone
-                                                            .load_image(&stream_icon)
-                                                        {
-                                                            if let Ok(image) =
-                                                                image::load_from_memory(&img)
-                                                            {
-                                                                let image = image.into_rgba8();
-                                                                stream.stream_icon =
-                                                                    Image::from_rgba8(
-                                                                        SharedPixelBuffer::<
-                                                                            Rgba8Pixel,
-                                                                        >::clone_from_slice(
-                                                                            &image.as_bytes(),
-                                                                            image.width(),
-                                                                            image.height(),
-                                                                        ),
-                                                                    );
-                                                            }
-                                                        }
-                                                    }
-                                                    // Update the UI with the new stream list
-                                                    main_view.set_movies_streams(
-                                                        ModelRc::new(VecModel::from(streams))
-                                                            .into(),
-                                                    );
-                                                }
-                                            })
-                                            .unwrap();
                                         }
-                                    }))
+                                    }
+                                    // Try to load the image from the cache
+                                    // let img = image_cache_clone
+                                    //     .load_image(&stream.stream_icon)
+                                    //     .unwrap_or_default();
+                                    // else {
+                                    // Image downloaded successfully, update the UI
+                                    slint::invoke_from_event_loop(move || {
+                                        if let Some(main_view) = main_view_weak.upgrade() {
+                                            // Find the stream in the current list and update its image
+                                            log::debug!("Updating ui main thread");
+                                            let mut streams = main_view
+                                                .get_movies_streams()
+                                                .iter()
+                                                .collect::<Vec<_>>();
+                                            if let Some(stream) = streams
+                                                .iter_mut()
+                                                .find(|s| s.stream_id == stream_id as i32)
+                                            {
+                                                if let Ok(img) =
+                                                    image_cache_clone.load_image(&stream_icon)
+                                                {
+                                                    if let Ok(image) = image::load_from_memory(&img)
+                                                    {
+                                                        let image = image.into_rgba8();
+                                                        stream.stream_icon =
+                                                            Image::from_rgba8(SharedPixelBuffer::<
+                                                                Rgba8Pixel,
+                                                            >::clone_from_slice(
+                                                                &image.as_bytes(),
+                                                                image.width(),
+                                                                image.height(),
+                                                            ));
+                                                    }
+                                                }
+                                            }
+                                            // Update the UI with the new stream list
+                                            main_view.set_movies_streams(
+                                                ModelRc::new(VecModel::from(streams)).into(),
+                                            );
+                                        }
+                                    })
                                     .unwrap();
-                                }
+                                    // }
+                                }))
+                                .unwrap();
+                                // }
 
                                 // Create the Movie object with a placeholder image
                                 slint_generatedMainView::Movie {
@@ -388,24 +388,25 @@ impl App {
                                     name: stream.name.into(),
                                     stream_type: stream.stream_type.into(),
                                     stream_id: stream.stream_id as i32,
-                                    stream_icon: if img.is_empty() {
-                                        // Use a placeholder image if the image is not yet downloaded
-                                        Image::default()
-                                    } else {
-                                        // Use the cached image
-                                        if let Ok(image) = image::load_from_memory(&img) {
-                                            let image = image.into_rgba8();
-                                            Image::from_rgba8(
-                                                SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
-                                                    &image.as_bytes(),
-                                                    image.width(),
-                                                    image.height(),
-                                                ),
-                                            )
-                                        } else {
-                                            Image::default()
-                                        }
-                                    },
+                                    // stream_icon: if img.is_empty() {
+                                    //     // Use a placeholder image if the image is not yet downloaded
+                                    //     Image::default()
+                                    // } else {
+                                    //     // Use the cached image
+                                    //     if let Ok(image) = image::load_from_memory(&img) {
+                                    //         let image = image.into_rgba8();
+                                    //         Image::from_rgba8(
+                                    //             SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+                                    //                 &image.as_bytes(),
+                                    //                 image.width(),
+                                    //                 image.height(),
+                                    //             ),
+                                    //         )
+                                    //     } else {
+                                    //         Image::default()
+                                    //     }
+                                    // },
+                                    stream_icon: Image::default(),
                                     added: stream.added.unwrap_or_default().into(),
                                     is_adult: stream.is_adult.into(),
                                     category_id: stream.category_id.into(),
