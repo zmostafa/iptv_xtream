@@ -356,7 +356,7 @@ pub async fn fetch_movie_info(
 
     let mut response = client
         .get(&url)
-        .map_err(|e| ApiError::NetworkError(format!("Failed to fetch all movies: {}", e)))?;
+        .map_err(|e| ApiError::NetworkError(format!("Failed to fetch movie info: {}", e)))?;
 
     if response.status().is_success() {
         let raw_body = response.text().map_err(|e| {
@@ -364,7 +364,7 @@ pub async fn fetch_movie_info(
         })?;
 
         serde_json::from_str::<Vec<MovieResponse>>(&raw_body)
-            .map_err(|e| ApiError::InvalidResponse(format!("Failed to parse Movies: {}", e)))
+            .map_err(|e| ApiError::InvalidResponse(format!("Failed to parse Movie info: {}", e)))
     } else {
         Err(ApiError::Unknown(format!(
             "Unexpected status code: {}",
