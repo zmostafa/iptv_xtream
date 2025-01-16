@@ -96,8 +96,15 @@ export component MoviesView inherits Page {
     in-out property <string> movie-name;
     in-out property <image> cover;
 
+    in-out property <float> download_progress: 0.0;
+    in-out property <bool> is_downloading: false;
+    in-out property <bool> is_downloaded: false;
+
+
     callback on_movie_selected(int, string);
     callback movie_display(string, image);
+    callback on_movie_download(int, string);
+
     header: category_name;
 
     property <int> columns: ceil(root.width / (DemoPalette.button-width + root.button-spacing));
@@ -139,6 +146,9 @@ export component MoviesView inherits Page {
         extension: root.extension;
         img-background: root.cover;
         img-poster: root.cover;
+        download_progress: root.download_progress;
+        is_downloaded: root.is_downloaded;
+        is_downloading: root.is_downloading;
 
         back => {
             root.current-subpage = SubPage.Streams;
@@ -153,6 +163,13 @@ export component MoviesView inherits Page {
             root.stream_id = stream_id;
             root.extension = extension;
             root.on_movie_selected(stream_id, extension);
+        }
+        on_movie_download => {
+            // debug("Calling on_movie_selected from MoviesView");
+            root.stream_id = stream_id;
+            root.extension = extension;
+            root.is_downloading = true;
+            root.on_movie_download(stream_id, extension);
         }
     }
 }
@@ -170,8 +187,14 @@ export component MoviesCategoriesView inherits Page {
     in-out property <SubPage> current-subpage: SubPage.Categories;
     in-out property <Category> selected_category;
 
+    in-out property <float> download_progress: 0.0;
+    in-out property <bool> is_downloading: false;
+    in-out property <bool> is_downloaded: false;
+
+
     callback on_category_selected(Category);
     callback on_movie_selected(int, string);
+    callback on_movie_download(int, string);
 
     Flickable {
         width: parent.width;
@@ -195,6 +218,9 @@ export component MoviesCategoriesView inherits Page {
         movies_streams: root.movies_streams;
         stream_id <=> root.stream_id;
         extension <=> root.extension;
+        download_progress <=> root.download_progress;
+        is_downloaded <=> root.is_downloaded;
+        is_downloading <=> root.is_downloading;
 
         back => {
             root.current-subpage = SubPage.Categories;
@@ -209,6 +235,13 @@ export component MoviesCategoriesView inherits Page {
             root.stream_id = stream_id;
             root.extension = extension;
             root.on_movie_selected(stream_id, extension);
+        }
+
+        on_movie_download => {
+            // debug("Calling on_movie_selected from MoviesCategories");
+            root.stream_id = stream_id;
+            root.extension = extension;
+            root.on_movie_download(stream_id, extension);
         }
     }
 }

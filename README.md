@@ -45,6 +45,7 @@ The app comes with two UI falvors, one using `egui` crate and the other using `s
 - [ ] Get casing information from TMDB website for better display
 - [ ] Display Movie/Serie plot and info 
   - [ ] implement a new API to get the movie/serie info data.
+- [ ] Save posters in the same database as streams, to save time fetching from image cache
 
 ### ⚠️ Limitations
 Ui in `egui` does not display arabic letters well, due to the fact its lack of RTL support.

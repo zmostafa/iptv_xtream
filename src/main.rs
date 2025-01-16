@@ -12,9 +12,12 @@ use async_compat::Compat;
 use image::{self, EncodableLayout};
 use isahc::config::Configurable;
 use isahc::HttpClient;
+use log::info;
 use std::process::{Command, Stdio};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tokio::sync::mpsc;
+use tokio::task;
 
 use slint::{Image, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, VecModel};
 
@@ -323,7 +326,6 @@ impl App {
 
                                 // Spawn a background task to download the image
                                 slint::spawn_local(Compat::new(async move {
-                                    
                                     if !image_cache_clone.is_cached(&stream_icon) {
                                         if let Err(err) = utils::fetch_and_cache_image(
                                             (*client_clone).clone(),
@@ -508,6 +510,72 @@ impl App {
                     .expect("Failed to start MPV");
             });
 
+        let db = Arc::clone(&self.db);
+        let client = Arc::clone(&self.client);
+        let main_view_weak = self.main_view.as_weak();
+
+        self.main_view
+            .on_handle_movie_download(move |movie, extension| {
+                log::info!("Start donwloading movie {}", movie);
+                let stream_url = format!(
+                    "{}/{}/{}/{}/{}.{}",
+                    db.get::<String>("api_url").unwrap_or_default(),
+                    "movie",
+                    db.get::<String>("username").unwrap_or_default(),
+                    db.get::<String>("password").unwrap_or_default(),
+                    movie,
+                    extension
+                );
+
+                let save_path = format!(
+                    "iptv_cache/{}.{}",
+                    movie, extension
+                );
+                let progress = Arc::new(Mutex::new(0.0));
+                let progress_clone_for_download = Arc::clone(&progress);
+
+let db = db.clone();
+                tokio::spawn({
+                    async move {
+                        if let Err(e) = utils::download_with_wget_async(
+                            &stream_url,
+                            &save_path,
+                            progress_clone_for_download,
+                        )
+                        .await
+                        {
+                            log::error!("Download failed: {}", e);
+                        } else {
+                            log::info!("Download completed: {}", save_path);
+                            log::info!("Saving download to database");
+                            db.save_download(
+                                movie.clone() as u32,
+                                &save_path,
+                            );
+                        }
+                    }
+                });
+
+                // Listen for progress updates and update the UI
+                let main_view_weak = main_view_weak.clone();
+                task::spawn(async move {
+                    while let Ok(guard) = progress.lock() {
+                        let progress_value = *guard;
+                        log::info!("Download progress ..... {}", progress_value);
+                        let main_view_weak = main_view_weak.clone();
+                        slint::invoke_from_event_loop(move || {
+                            if let Some(main_view) = main_view_weak.upgrade() {
+                                if progress_value < 100.0 {
+                                    main_view.set_is_downloading(true);
+                                }
+                                main_view.set_download_progress(progress_value);
+                            }
+                        })
+                        .unwrap();
+                    }
+                });
+            });
+
         // Run the Slint event loop
         log::info!("Running MainView UI");
         self.main_view.run().unwrap();
@@ -515,7 +583,8 @@ impl App {
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     env_logger::init();
 
     let app = App::new();

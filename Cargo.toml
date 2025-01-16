@@ -29,6 +29,7 @@ derivative = "2.2.0"
 regex = "1.11.1"
 slint = "1.9.1"
 async-compat = "0.2.4"
+rayon = "1.10.0"
 
 [build-dependencies]
 slint-build = "1.9.1"
