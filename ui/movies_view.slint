@@ -22,9 +22,9 @@ export struct Movie {
     direct_source: string,
 }
 
-enum SubPage { Categories, Streams, MovieSite }
+enum SubPage { Categories, Streams, MovieSite, Search }
 
-component ActionButton inherits Rectangle {
+export component ActionButton inherits Rectangle {
     in property <image> icon <=> img.source;
     in property <string> text <=> label.text;
     in property <int> stream_id;

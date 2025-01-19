@@ -1,0 +1,85 @@
+import { DemoPalette, Page, PushButton } from "common.slint";
+import { Spinner, ScrollView } from "std-widgets.slint";
+import { Movie, MoviesView, ActionButton } from "movies_view.slint";
+import { MoviePage } from "movie_page.slint";
+import { LineEdit } from "std-widgets.slint";
+
+enum SubPage { Categories, Streams, MovieSite, Search }
+
+export component SearchView inherits Page {
+    // header: "Categories";
+    // has-back-button: true;
+    in-out property <[Movie]> movies_streams: [];
+    in-out property <Movie> movie;
+    in-out property <int> stream_id;
+    in-out property <string> extension;
+
+    in-out property <SubPage> current-subpage: SubPage.Search;
+
+    in-out property <float> download_progress: 0.0;
+    in-out property <bool> is_downloading: false;
+    in-out property <bool> is_downloaded: false;
+
+    in-out property <string> search: "";
+
+    callback on_search();
+    callback on_movie_selected(int, string);
+    callback on_movie_download(int, string);
+
+    Flickable {
+        width: parent.width;
+        height: parent.height - DemoPalette.base-font-size * 8; // Display of categories starts after Header
+
+        VerticalLayout {
+            spacing: 16px;
+
+            LineEdit {
+                placeholder-text: "Search.....";
+                text <=> search;
+                height: 50px;
+                padding: 10px;
+            }
+
+            PushButton {
+                text: "Search";
+                primary: true;
+                clicked => {
+                    root.current-subpage = SubPage.Streams;
+                    root.on_search();
+                }
+            }
+        }
+    }
+
+    MoviesView {
+        // category_name: root.selected_category.category-name;
+        movies_streams: root.movies_streams;
+        stream_id <=> root.stream_id;
+        extension <=> root.extension;
+        download_progress <=> root.download_progress;
+        is_downloaded <=> root.is_downloaded;
+        is_downloading <=> root.is_downloading;
+
+        back => {
+            root.current-subpage = SubPage.Search;
+        }
+        x: root.current-subpage == SubPage.Streams ? 0 : parent.width + parent.x + 2px;
+        animate x {
+            duration: 125ms;
+            easing: ease;
+        }
+        on_movie_selected => {
+            // debug("Calling on_movie_selected from MoviesCategories");
+            root.stream_id = stream_id;
+            root.extension = extension;
+            root.on_movie_selected(stream_id, extension);
+        }
+
+        on_movie_download => {
+            // debug("Calling on_movie_selected from MoviesCategories");
+            root.stream_id = stream_id;
+            root.extension = extension;
+            root.on_movie_download(stream_id, extension);
+        }
+    }
+}

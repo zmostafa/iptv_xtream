@@ -6,6 +6,7 @@ import { MoviesCategoriesView, MoviesView, Category, Movie } from "./movies_view
 
 import "../assets/Amiri-Regular.ttf";
 import { LoginView } from "login_view.slint";
+import { SearchView } from "search.slint";
 
 component SideBarIcon inherits Rectangle {
     in-out property <bool> active;
@@ -45,6 +46,8 @@ export component MainView inherits Window {
     in-out property <string> username: "";
     in-out property <string> password: "";
 
+    in-out property <string> search: "";
+
     callback quit();
 
     min-width: 800px;
@@ -61,6 +64,7 @@ export component MainView inherits Window {
     callback handle_movie_selected(int, string);
 
     callback handle_movie_download(int,string);
+    callback handle_search(int);
 
 
     in-out property <[Category]> live_tv_categories: [];
@@ -217,7 +221,7 @@ export component MainView inherits Window {
                     }
                 }
 
-                Page {
+                SearchView {
                     header: "Search";
                     // page number is matching the y index in the position for the icon
                     property <int> pageNumber: 5;
@@ -230,6 +234,16 @@ export component MainView inherits Window {
                     animate opacity {
                         duration: page-animation-duration;
                         easing: ease-out-quad;
+                    }
+                    movies_streams <=> root.movies_streams;
+                    movie <=> root.movie;
+                    stream_id <=> root.stream_id;
+                    extension <=> root.extension;
+                    download_progress <=> root.download_progress;
+                    is_downloaded <=> root.is_downloaded;
+                    is_downloading <=> root.is_downloading;
+                    on_search => {
+                        root.handle_search(5);
                     }
                 }
 

@@ -427,6 +427,17 @@ impl App {
                             .set_movies_streams(ModelRc::new(VecModel::from(slint_streams)).into());
                     }
                     2 => {}
+                    5 => {
+                        let movies = db
+                            .get_movies_categories()
+                            .iter()
+                            .flat_map(|category| db.get_movies_streams(&category.category_id))
+                            .collect::<Vec<_>>();
+
+                        let mut slint_streams: Vec<slint_generatedMainView::Movie> =
+                            movies.into_iter()
+                            .map(|movies| {})
+                    }
                     _ => {
                         log::error!("Unkmown page");
                     }
@@ -527,14 +538,11 @@ impl App {
                     extension
                 );
 
-                let save_path = format!(
-                    "iptv_cache/{}.{}",
-                    movie, extension
-                );
+                let save_path = format!("iptv_cache/{}.{}", movie, extension);
                 let progress = Arc::new(Mutex::new(0.0));
                 let progress_clone_for_download = Arc::clone(&progress);
 
-let db = db.clone();
+                let db = db.clone();
                 tokio::spawn({
                     async move {
                         if let Err(e) = utils::download_with_wget_async(
@@ -548,10 +556,7 @@ let db = db.clone();
                         } else {
                             log::info!("Download completed: {}", save_path);
                             log::info!("Saving download to database");
-                            db.save_download(
-                                movie.clone() as u32,
-                                &save_path,
-                            );
+                            db.save_download(movie.clone() as u32, &save_path);
                         }
                     }
                 });
