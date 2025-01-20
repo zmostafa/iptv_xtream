@@ -1,4 +1,4 @@
-import { Button, ScrollView, ProgressIndicator} from "std-widgets.slint";
+import { Button, ScrollView, ProgressIndicator, Spinner} from "std-widgets.slint";
 import { DemoPalette, Page, PushButton } from "common.slint";
 // Define the MainContent component
 enum SubPage { Categories, Streams, MovieSite, Search }
@@ -60,7 +60,7 @@ component MainContent inherits Rectangle {
                     colorize: white;
                     TouchArea {
                         clicked => {
-                            debug("Calling on_movie_play from search");
+                            // debug("Calling on_movie_play from search");
                             root.on_movie_selected(root.stream_id, root.extension);
                         }
                     }
@@ -83,34 +83,42 @@ component MainContent inherits Rectangle {
                     y: 200px;
                 }
 
-                Image {
-                    width: 50px;
+                Rectangle {
+                    // y:200px;
+                     width: 50px;
                     height: 50px;
-                    source: {
+                    Image {
+                        width: 50px;
+                        height: 50px;
+                        source: {
                         if root.is_downloaded {
                             root.offline_icon
                         } else {
                             root.download_icon
                         }
                     };
-                    colorize: white;
-                    y: 200px;
-                    visible: !root.is_downloading;
-                    TouchArea {
-                        clicked => {
-                            debug("Calling on_movie_download from search");
+                        colorize: white;
+                        y: 200px;
+                        visible: !root.is_downloading;
+                        TouchArea {
+                            clicked => {
+                            // debug("Calling on_movie_download from search");
                             root.on_movie_download(root.stream_id, root.extension);
+                            }
                         }
                     }
-                }
 
-                // Progress Bar (visible only when downloading)
-            ProgressIndicator {
-                    width: 50px;
-                    height: 50px;
-                    y:200px;
-                    visible: root.is_downloading;
-                    progress: root.download_progress;
+                    // Progress Bar (visible only when downloading)
+                    Spinner {
+                        width: 50px;
+                        height: 50px;
+                        y: 200px;
+                        visible: root.is_downloading;
+                        // visible: true;
+                        progress: root.download_progress;
+                        // min-width: 160px;
+                        indeterminate: true;
+                    }
                 }
             }
 
