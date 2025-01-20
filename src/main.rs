@@ -201,7 +201,7 @@ impl App {
                                 // If the image is not in the cache, download it asynchronously
                                 if !image_cache.is_cached(&stream.stream_icon) {
                                     let client_clone = Arc::clone(&client);
-                                    let image_cache_clone = Arc::clone(&image_cache);
+                                    let image_cache_clone: Arc<ImageCache> = Arc::clone(&image_cache);
                                     let stream_icon = stream.stream_icon.clone();
                                     let main_view_weak = main_view_weak.clone();
                                     let stream_id = stream.stream_id;
@@ -427,17 +427,6 @@ impl App {
                             .set_movies_streams(ModelRc::new(VecModel::from(slint_streams)).into());
                     }
                     2 => {}
-                    5 => {
-                        let movies = db
-                            .get_movies_categories()
-                            .iter()
-                            .flat_map(|category| db.get_movies_streams(&category.category_id))
-                            .collect::<Vec<_>>();
-
-                        let mut slint_streams: Vec<slint_generatedMainView::Movie> =
-                            movies.into_iter()
-                            .map(|movies| {})
-                    }
                     _ => {
                         log::error!("Unkmown page");
                     }
@@ -580,6 +569,106 @@ impl App {
                     }
                 });
             });
+
+        let db = Arc::clone(&self.db);
+        let image_cache = Arc::clone(&self.image_cache);
+        let main_view_weak = self.main_view.as_weak();
+
+        self.main_view.on_handle_search(move |query| {
+            let main_view = main_view_weak.unwrap();
+            let movies = db
+                .get_movies_categories()
+                .iter()
+                .flat_map(|category| db.get_movies_streams(&category.category_id))
+                .collect::<Vec<_>>();
+
+            let search_result = movies
+                .into_iter()
+                .filter(|movie| movie.name.to_lowercase().contains(&query.to_lowercase()))
+                .collect::<Vec<_>>();
+
+            let mut slint_search_streams: Vec<slint_generatedMainView::Movie> = search_result
+                .into_iter()
+                .map(|stream| {
+                    let client_clone = Arc::clone(&client);
+                    let image_cache_clone = Arc::clone(&image_cache);
+                    let stream_icon = stream.stream_icon.clone();
+                    let main_view_weak = main_view_weak.clone();
+                    let stream_id = stream.stream_id;
+
+                    // Spawn a background task to download the image
+                    slint::spawn_local(Compat::new(async move {
+                        if !image_cache_clone.is_cached(&stream_icon) {
+                            if let Err(err) = utils::fetch_and_cache_image(
+                                (*client_clone).clone(),
+                                (*image_cache_clone).clone(),
+                                &stream_icon,
+                            )
+                            .await
+                            {
+                                log::error!("Failed to download image: {}", err);
+                            }
+                        }
+                        // Image downloaded successfully, update the UI
+                        slint::invoke_from_event_loop(move || {
+                            if let Some(main_view) = main_view_weak.upgrade() {
+                                // Find the stream in the current list and update its image
+                                log::debug!("Updating ui main thread");
+                                let mut streams =
+                                    main_view.get_movies_streams().iter().collect::<Vec<_>>();
+                                if let Some(stream) =
+                                    streams.iter_mut().find(|s| s.stream_id == stream_id as i32)
+                                {
+                                    if let Ok(img) = image_cache_clone.load_image(&stream_icon) {
+                                        if let Ok(image) = image::load_from_memory(&img) {
+                                            let image = image.into_rgba8();
+                                            stream.stream_icon = Image::from_rgba8(
+                                                SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+                                                    &image.as_bytes(),
+                                                    image.width(),
+                                                    image.height(),
+                                                ),
+                                            );
+                                        }
+                                    }
+                                }
+                                // Update the UI with the new stream list
+                                main_view.set_movies_streams(
+                                    ModelRc::new(VecModel::from(streams)).into(),
+                                );
+                            }
+                        })
+                        .unwrap();
+                        // }
+                    }))
+                    .unwrap();
+                    // }
+
+                    // Create the Movie object with a placeholder image
+                    slint_generatedMainView::Movie {
+                        num: stream.num as i32,
+                        name: stream.name.into(),
+                        stream_type: stream.stream_type.into(),
+                        stream_id: stream.stream_id as i32,
+                        stream_icon: Image::default(),
+                        added: stream.added.unwrap_or_default().into(),
+                        is_adult: stream.is_adult.into(),
+                        category_id: stream.category_id.into(),
+                        custom_sid: stream.custom_sid.into(),
+                        rating_5based: stream.rating_5based.into(),
+                        container_extension: stream.container_extension.into(),
+                        direct_source: stream.direct_source.into(),
+                    }
+                })
+                .collect();
+
+            slint_search_streams.sort_by(|a, b| b.added.cmp(&a.added)); // Sort by `added` date in descending order
+
+            // Update the UI with the initial list of streams (some images may be placeholders)
+            main_view.set_movies_streams(
+                ModelRc::new(VecModel::from(slint_search_streams)).into(),
+            );
+        });
 
         // Run the Slint event loop
         log::info!("Running MainView UI");

@@ -60,7 +60,7 @@ component MainContent inherits Rectangle {
                     colorize: white;
                     TouchArea {
                         clicked => {
-                            // debug("Calling on_movie_selected from MainComponent");
+                            debug("Calling on_movie_play from search");
                             root.on_movie_selected(root.stream_id, root.extension);
                         }
                     }
@@ -98,7 +98,7 @@ component MainContent inherits Rectangle {
                     visible: !root.is_downloading;
                     TouchArea {
                         clicked => {
-                            // debug("Calling on_movie_selected from MainComponent");
+                            debug("Calling on_movie_download from search");
                             root.on_movie_download(root.stream_id, root.extension);
                         }
                     }

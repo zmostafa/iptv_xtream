@@ -64,7 +64,7 @@ export component MainView inherits Window {
     callback handle_movie_selected(int, string);
 
     callback handle_movie_download(int,string);
-    callback handle_search(int);
+    callback handle_search(string);
 
 
     in-out property <[Category]> live_tv_categories: [];
@@ -75,6 +75,7 @@ export component MainView inherits Window {
     in-out property <LiveStream> livestream;
 
     in-out property <[Movie]> movies_streams: [];
+    in-out property <[Movie]> search_movies_streams: [];
     in-out property <Movie> movie;
 
     in-out property <int> stream_id;
@@ -235,6 +236,7 @@ export component MainView inherits Window {
                         duration: page-animation-duration;
                         easing: ease-out-quad;
                     }
+
                     movies_streams <=> root.movies_streams;
                     movie <=> root.movie;
                     stream_id <=> root.stream_id;
@@ -242,8 +244,21 @@ export component MainView inherits Window {
                     download_progress <=> root.download_progress;
                     is_downloaded <=> root.is_downloaded;
                     is_downloading <=> root.is_downloading;
-                    on_search => {
-                        root.handle_search(5);
+
+                    on_search(query) => {
+                        root.handle_search(query);
+                    }
+
+                    on_movie_selected => {
+                        root.stream_id = stream_id; // Update stream_id
+                        root.extension = extension;
+                        root.handle_movie_selected(stream_id, extension);
+                    }
+
+                    on_movie_download => {
+                        root.stream_id = stream_id; // Update stream_id
+                        root.extension = extension;
+                        root.handle_movie_download(stream_id, extension);                        
                     }
                 }
 

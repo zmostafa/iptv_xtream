@@ -22,7 +22,7 @@ export component SearchView inherits Page {
 
     in-out property <string> search: "";
 
-    callback on_search();
+    callback on_search(string);
     callback on_movie_selected(int, string);
     callback on_movie_download(int, string);
 
@@ -45,7 +45,7 @@ export component SearchView inherits Page {
                 primary: true;
                 clicked => {
                     root.current-subpage = SubPage.Streams;
-                    root.on_search();
+                    root.on_search(search);
                 }
             }
         }
@@ -53,6 +53,7 @@ export component SearchView inherits Page {
 
     MoviesView {
         // category_name: root.selected_category.category-name;
+        header: "Search results:";
         movies_streams: root.movies_streams;
         stream_id <=> root.stream_id;
         extension <=> root.extension;
@@ -69,14 +70,14 @@ export component SearchView inherits Page {
             easing: ease;
         }
         on_movie_selected => {
-            // debug("Calling on_movie_selected from MoviesCategories");
+            // debug("Calling on_movie_selected from Search");
             root.stream_id = stream_id;
             root.extension = extension;
             root.on_movie_selected(stream_id, extension);
         }
 
         on_movie_download => {
-            // debug("Calling on_movie_selected from MoviesCategories");
+            // debug("Calling on_movie_selected from Search");
             root.stream_id = stream_id;
             root.extension = extension;
             root.on_movie_download(stream_id, extension);
