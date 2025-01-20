@@ -201,7 +201,8 @@ impl App {
                                 // If the image is not in the cache, download it asynchronously
                                 if !image_cache.is_cached(&stream.stream_icon) {
                                     let client_clone = Arc::clone(&client);
-                                    let image_cache_clone: Arc<ImageCache> = Arc::clone(&image_cache);
+                                    let image_cache_clone: Arc<ImageCache> =
+                                        Arc::clone(&image_cache);
                                     let stream_icon = stream.stream_icon.clone();
                                     let main_view_weak = main_view_weak.clone();
                                     let stream_id = stream.stream_id;
@@ -317,7 +318,6 @@ impl App {
                             .into_iter()
                             .map(|stream| {
                                 // If the image is not in the cache, download it asynchronously
-                                // if !image_cache.is_cached(&stream.stream_icon) {
                                 let client_clone = Arc::clone(&client);
                                 let image_cache_clone = Arc::clone(&image_cache);
                                 let stream_icon = stream.stream_icon.clone();
@@ -337,11 +337,6 @@ impl App {
                                             log::error!("Failed to download image: {}", err);
                                         }
                                     }
-                                    // Try to load the image from the cache
-                                    // let img = image_cache_clone
-                                    //     .load_image(&stream.stream_icon)
-                                    //     .unwrap_or_default();
-                                    // else {
                                     // Image downloaded successfully, update the UI
                                     slint::invoke_from_event_loop(move || {
                                         if let Some(main_view) = main_view_weak.upgrade() {
@@ -390,24 +385,6 @@ impl App {
                                     name: stream.name.into(),
                                     stream_type: stream.stream_type.into(),
                                     stream_id: stream.stream_id as i32,
-                                    // stream_icon: if img.is_empty() {
-                                    //     // Use a placeholder image if the image is not yet downloaded
-                                    //     Image::default()
-                                    // } else {
-                                    //     // Use the cached image
-                                    //     if let Ok(image) = image::load_from_memory(&img) {
-                                    //         let image = image.into_rgba8();
-                                    //         Image::from_rgba8(
-                                    //             SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
-                                    //                 &image.as_bytes(),
-                                    //                 image.width(),
-                                    //                 image.height(),
-                                    //             ),
-                                    //         )
-                                    //     } else {
-                                    //         Image::default()
-                                    //     }
-                                    // },
                                     stream_icon: Image::default(),
                                     added: stream.added.unwrap_or_default().into(),
                                     is_adult: stream.is_adult.into(),
@@ -416,6 +393,10 @@ impl App {
                                     rating_5based: stream.rating_5based.into(),
                                     container_extension: stream.container_extension.into(),
                                     direct_source: stream.direct_source.into(),
+                                    download_path: db
+                                        .is_downloaded(&stream_id)
+                                        .unwrap_or_default()
+                                        .into(),
                                 }
                             })
                             .collect();
@@ -477,17 +458,22 @@ impl App {
             .on_handle_movie_selected(move |movie, extension| {
                 log::warn!("Stream: {:?}", movie);
 
-                let stream_url = format!(
-                    "{}/{}/{}/{}/{}.{}",
-                    db.get::<String>("api_url").unwrap_or_default(),
-                    "movie",
-                    db.get::<String>("username").unwrap_or_default(),
-                    db.get::<String>("password").unwrap_or_default(),
-                    movie,
-                    extension
-                );
+                let stream_url = if let Some(offline) = db.is_downloaded(&(movie as u32)) {
+                    log::info!("Stream found offline");
+                    offline
+                } else {
+                    format!(
+                        "{}/{}/{}/{}/{}.{}",
+                        db.get::<String>("api_url").unwrap_or_default(),
+                        "movie",
+                        db.get::<String>("username").unwrap_or_default(),
+                        db.get::<String>("password").unwrap_or_default(),
+                        movie,
+                        extension
+                    )
+                };
 
-                log::info!("Playing Live Stream {}", &stream_url);
+                log::info!("Playing Live Stream {:?}", &stream_url);
 
                 // Socket path
                 let temp_dir = std::env::current_dir().unwrap().join("iptv_cache");
@@ -559,7 +545,7 @@ impl App {
                         let main_view_weak = main_view_weak.clone();
                         slint::invoke_from_event_loop(move || {
                             if let Some(main_view) = main_view_weak.upgrade() {
-                                if progress_value < 100.0 {
+                                if progress_value < 1.0 {
                                     main_view.set_is_downloading(true);
                                 }
                                 main_view.set_download_progress(progress_value);
@@ -658,6 +644,7 @@ impl App {
                         rating_5based: stream.rating_5based.into(),
                         container_extension: stream.container_extension.into(),
                         direct_source: stream.direct_source.into(),
+                        download_path: db.is_downloaded(&stream_id).unwrap_or_default().into(),
                     }
                 })
                 .collect();
@@ -665,9 +652,7 @@ impl App {
             slint_search_streams.sort_by(|a, b| b.added.cmp(&a.added)); // Sort by `added` date in descending order
 
             // Update the UI with the initial list of streams (some images may be placeholders)
-            main_view.set_movies_streams(
-                ModelRc::new(VecModel::from(slint_search_streams)).into(),
-            );
+            main_view.set_movies_streams(ModelRc::new(VecModel::from(slint_search_streams)).into());
         });
 
         // Run the Slint event loop

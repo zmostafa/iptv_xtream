@@ -97,7 +97,13 @@ component MainContent inherits Rectangle {
                             root.download_icon
                         }
                     };
-                        colorize: white;
+                        colorize: {
+                            if root.is_downloaded {
+                                green
+                            }else{
+                                white
+                            }
+                        };
                         y: 200px;
                         visible: !root.is_downloading;
                         TouchArea {

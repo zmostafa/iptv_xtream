@@ -20,6 +20,7 @@ export struct Movie {
     container_extension: string,
     custom_sid: string,
     direct_source: string,
+    download_path: string,
 }
 
 enum SubPage { Categories, Streams, MovieSite, Search }
@@ -132,6 +133,7 @@ export component MoviesView inherits Page {
                     root.stream_id = self.stream_id; // Update stream_id
                     root.extension = self.extension;
                     // root.on_movie_selected(self.stream_id, self.extension);
+                    root.is_downloaded = movie.download_path == "" ? false : true;
                     root.movie_display(movie.name, movie.stream-icon);
                 }
             }
