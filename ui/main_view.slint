@@ -1,5 +1,5 @@
 import { VerticalBox, HorizontalBox, Button } from "std-widgets.slint";
-import { DemoPalette, Page } from "common.slint";
+import { DemoPalette, Page, PushButton } from "common.slint";
 import { SettingsPage } from "./settings.slint";
 import { LiveCategoriesView, LiveStreamView, Category, LiveStream } from "./live_view.slint";
 import { MoviesCategoriesView, MoviesView, Category, Movie } from "./movies_view.slint";
@@ -7,10 +7,19 @@ import { MoviesCategoriesView, MoviesView, Category, Movie } from "./movies_view
 import "../assets/Amiri-Regular.ttf";
 import { LoginView } from "login_view.slint";
 import { SearchView } from "search.slint";
+import { ActionButton } from "movies_view.slint";
+
+struct PageInfo {
+    icon: image,
+    label: string,
+    icontip: string,
+}
 
 component SideBarIcon inherits Rectangle {
     in-out property <bool> active;
     in-out property <image> icon <=> i.source;
+    in-out property <bool> is_hovered: false;
+    in-out property <string> icontip <=> t.text;
 
     callback activate;
     width: DemoPalette.side-bar-width;
@@ -31,9 +40,28 @@ component SideBarIcon inherits Rectangle {
         }
     }
 
-    TouchArea {
+    touch-area := TouchArea {
         clicked => {
             root.activate();
+        }
+    }
+
+    // Tooltip (Conditionally Visible)
+    Rectangle {
+        x: DemoPalette.side-bar-margin + self.width/2; // Position to the right of the button
+        width: 170px;
+        height: 30px;
+        background: #17b2f449;
+        visible: touch-area.has-hover;
+        opacity: 0.9;
+
+        t := Text {
+            text: "This button does something!";
+            color: black;
+            font-family: "Amiri";
+            font-size: DemoPalette.base-font-size;
+            horizontal-alignment: center;
+            vertical-alignment: center;
         }
     }
 }
@@ -299,6 +327,9 @@ export component MainView inherits Window {
                         duration: page-animation-duration;
                         easing: ease-out-quad;
                     }
+
+                    PushButton {}
+                    ActionButton {}
                 }
 
                 SettingsPage {
@@ -364,18 +395,31 @@ export component MainView inherits Window {
         VerticalLayout {
             y: 82px;
 
-            for page-icon[idx] in [
-                @image-url("../assets/tv-icon.svg"),
-                @image-url("../assets/movies-icon.svg"),
-                @image-url("../assets/series-icon.svg"),
+            for page-info[idx] in [
+                {
+                    icon: @image-url("../assets/tv-icon.svg"),
+                    label: "TV",
+                    icontip: "Watch live TV channels",
+                },
+                {
+                    icon: @image-url("../assets/movies-icon.svg"),
+                    label: "Movies",
+                    icontip: "Browse and watch movies",
+                },
+                {
+                    icon: @image-url("../assets/series-icon.svg"),
+                    label: "Series",
+                    icontip: "Watch your favorite series",
+                },
             ]: SideBarIcon {
                 activate => {
                     if root.sidebar-enabled {
                         root.active-page = idx;
                     }
                 }
-                icon: page-icon;
+                icon: page-info.icon;
                 active: root.active-page == idx;
+                icontip: page-info.icontip;
             }
         }
 
@@ -400,6 +444,7 @@ export component MainView inherits Window {
             width: 30px;
             icon: @image-url("../assets/recently-viewed.svg");
             active: root.active-page == 4;
+            icontip: "Recently watched";
         }
 
         SideBarIcon {
@@ -415,6 +460,7 @@ export component MainView inherits Window {
             width: 30px;
             icon: @image-url("../assets/favorite-icon.svg");
             active: root.active-page == 5;
+            icontip: "Favorites";
         }
 
         SideBarIcon {
@@ -430,6 +476,7 @@ export component MainView inherits Window {
             width: 30px;
             icon: @image-url("../assets/search-icon.svg");
             active: root.active-page == 6;
+            icontip: "Search";
         }
 
         Rectangle {
@@ -453,6 +500,7 @@ export component MainView inherits Window {
             width: 30px;
             icon: @image-url("../assets/update-icon.svg");
             active: root.active-page == 8;
+            icontip: "Update Content";
         }
 
         SideBarIcon {
@@ -468,6 +516,7 @@ export component MainView inherits Window {
             width: 30px;
             icon: @image-url("../assets/settings.svg");
             active: root.active-page == 9;
+            icontip: "Settings";
         }
 
         SideBarIcon {
@@ -481,6 +530,7 @@ export component MainView inherits Window {
             width: 30px;
             icon: @image-url("../assets/login-icon.svg");
             active: root.active-page == 10;
+            icontip: "Login";
         }
     }
 }
