@@ -213,9 +213,26 @@ export component MainView inherits Window {
                 // }
 
                 Page {
-                    header: "Favorites";
+                    header: "Recently watched";
                     // page number is matching the y index in the position for the icon
                     property <int> pageNumber: 4;
+                    y: calcPageY(pageNumber);
+                    opacity: root.active-page == pageNumber ? 1 : 0;
+                    animate y {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                    animate opacity {
+                        duration: page-animation-duration;
+                        easing: ease-out-quad;
+                    }
+                }
+
+
+                Page {
+                    header: "Favorites";
+                    // page number is matching the y index in the position for the icon
+                    property <int> pageNumber: 5;
                     y: calcPageY(pageNumber);
                     opacity: root.active-page == pageNumber ? 1 : 0;
                     animate y {
@@ -231,7 +248,7 @@ export component MainView inherits Window {
                 SearchView {
                     header: "Search";
                     // page number is matching the y index in the position for the icon
-                    property <int> pageNumber: 5;
+                    property <int> pageNumber: 6;
                     y: calcPageY(pageNumber);
                     opacity: root.active-page == pageNumber ? 1 : 0;
                     animate y {
@@ -271,7 +288,7 @@ export component MainView inherits Window {
                 Page {
                     header: "Update Content";
                     // page number is matching the y index in the position for the icon
-                    property <int> pageNumber: 7;
+                    property <int> pageNumber: 8;
                     y: calcPageY(pageNumber);
                     opacity: root.active-page == pageNumber ? 1 : 0;
                     animate y {
@@ -286,7 +303,7 @@ export component MainView inherits Window {
 
                 SettingsPage {
                     // page number is matching the y index in the position for the icon
-                    property <int> pageNumber: 8;
+                    property <int> pageNumber: 9;
                     y: calcPageY(pageNumber);
                     opacity: root.active-page == pageNumber ? 1 : 0;
                     animate y {
@@ -301,7 +318,7 @@ export component MainView inherits Window {
 
                 LoginView {
                     // page number is matching the y index in the position for the icon
-                    property <int> pageNumber: 9;
+                    property <int> pageNumber: 10;
                     y: calcPageY(pageNumber);
                     opacity: root.active-page == pageNumber ? 1 : 0;
                     animate y {
@@ -381,7 +398,7 @@ export component MainView inherits Window {
             x: 16px;
             height: 35px;
             width: 30px;
-            icon: @image-url("../assets/favorite-icon.svg");
+            icon: @image-url("../assets/recently-viewed.svg");
             active: root.active-page == 4;
         }
 
@@ -396,31 +413,31 @@ export component MainView inherits Window {
             x: 16px;
             height: 35px;
             width: 30px;
-            icon: @image-url("../assets/search-icon.svg");
+            icon: @image-url("../assets/favorite-icon.svg");
             active: root.active-page == 5;
-        }
-
-        Rectangle {
-            y: sidebar.icon-y(6) + 17px;
-            x: DemoPalette.side-bar-margin + 8px;
-            background: DemoPalette.background;
-            height: 2px;
-            width: 37px;
         }
 
         SideBarIcon {
             activate => {
                 if root.sidebar-enabled {
-                    root.active-page = 7;
+                    root.active-page = 6;
                 }
             }
 
-            y: sidebar.icon-y(7);
+            y: sidebar.icon-y(6);
             x: 16px;
             height: 35px;
             width: 30px;
-            icon: @image-url("../assets/update-icon.svg");
-            active: root.active-page == 7;
+            icon: @image-url("../assets/search-icon.svg");
+            active: root.active-page == 6;
+        }
+
+        Rectangle {
+            y: sidebar.icon-y(7) + 17px;
+            x: DemoPalette.side-bar-margin + 8px;
+            background: DemoPalette.background;
+            height: 2px;
+            width: 37px;
         }
 
         SideBarIcon {
@@ -434,21 +451,36 @@ export component MainView inherits Window {
             x: 16px;
             height: 35px;
             width: 30px;
-            icon: @image-url("../assets/settings.svg");
+            icon: @image-url("../assets/update-icon.svg");
             active: root.active-page == 8;
         }
 
         SideBarIcon {
             activate => {
-                root.active-page = 9;
+                if root.sidebar-enabled {
+                    root.active-page = 9;
+                }
             }
 
             y: sidebar.icon-y(9);
             x: 16px;
             height: 35px;
             width: 30px;
-            icon: @image-url("../assets/login-icon.svg");
+            icon: @image-url("../assets/settings.svg");
             active: root.active-page == 9;
+        }
+
+        SideBarIcon {
+            activate => {
+                root.active-page = 10;
+            }
+
+            y: sidebar.icon-y(10);
+            x: 16px;
+            height: 35px;
+            width: 30px;
+            icon: @image-url("../assets/login-icon.svg");
+            active: root.active-page == 10;
         }
     }
 }

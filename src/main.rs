@@ -53,8 +53,8 @@ impl App {
 
         // Disable other icons in the app until login
         main_view.set_sidebar_enabled(false);
-        // Start with the login screen (page 9)
-        main_view.set_active_page(9);
+        // Start with the login screen (page 10)
+        main_view.set_active_page(10);
 
         Self {
             main_view,
