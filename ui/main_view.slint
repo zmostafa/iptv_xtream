@@ -64,6 +64,7 @@ export component MainView inherits Window {
     callback handle_movie_selected(int, string);
 
     callback handle_movie_download(int,string);
+    callback handle_movie_delete(int);
     callback handle_search(string);
 
 
@@ -183,6 +184,11 @@ export component MainView inherits Window {
                         root.stream_id = stream_id; // Update stream_id
                         root.extension = extension;
                         root.handle_movie_download(stream_id, extension);                        
+                    }
+
+                    on_movie_delete => {
+                        root.stream_id = stream_id;
+                        root.handle_movie_delete(stream_id);
                     }
                 }
 

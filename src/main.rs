@@ -655,6 +655,31 @@ impl App {
             main_view.set_movies_streams(ModelRc::new(VecModel::from(slint_search_streams)).into());
         });
 
+        let db = Arc::clone(&self.db);
+        let main_view_weak = self.main_view.as_weak();
+
+        self.main_view.on_handle_movie_delete(move |movie| {
+            log::warn!("Deleting downloaded media .....");
+
+            let db = db.clone();
+            tokio::spawn(async move {
+                let save_path = format!("iptv_cache/{}.*", movie);
+                let _ = std::fs::remove_file(save_path);
+                db.remove_download_path(&(movie as u32));
+            });
+
+            let main_view_weak = main_view_weak.clone();
+            slint::invoke_from_event_loop(move || {
+                if let Some(main_view) = main_view_weak.upgrade() {
+                    log::debug!("Update ui main thread from delete");
+                    main_view.set_is_downloaded(false);
+                    main_view.set_is_downloading(false);
+                }
+            })
+            .unwrap();
+            log::info!("Deleting downloaded media is done");
+        });
+
         // Run the Slint event loop
         log::info!("Running MainView UI");
         self.main_view.run().unwrap();

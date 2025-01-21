@@ -22,6 +22,7 @@ component MainContent inherits Rectangle {
 
     callback on_movie_selected(int, string);
     callback on_movie_download(int, string);
+    callback on_movie_delete(int);
 
     padding: 20px;
     background: transparent;
@@ -126,6 +127,22 @@ component MainContent inherits Rectangle {
                         indeterminate: true;
                     }
                 }
+
+                // delete icon
+                Image {
+                    width: 50px;
+                    height: 50px;
+                    source: @image-url("../assets/delete-icon.svg");
+                    colorize: red;
+                    y: 200px;
+                    visible: root.is_downloaded;
+                    TouchArea {
+                        clicked => {
+                        // debug("Calling on_movie_delete from search");
+                        root.on_movie_delete(root.stream_id);
+                        }
+                    }
+                }
             }
 
             // Movie Info
@@ -212,6 +229,7 @@ export component MoviePage inherits Page {
 
     callback on_movie_selected(int, string);
     callback on_movie_download(int, string);
+    callback on_movie_delete(int);
 
     header: movie_name;
     extension: extension;
@@ -245,6 +263,10 @@ export component MoviePage inherits Page {
 
                 on_movie_download => {
                     root.on_movie_download(stream_id, extension);
+                }
+
+                on_movie_delete => {
+                    root.on_movie_delete(stream_id);
                 }
             }
         }

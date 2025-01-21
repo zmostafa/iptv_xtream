@@ -222,6 +222,7 @@ pub async fn fetch_and_cache_image(
     }
 }
 
+//TODO: Change this api name, and the inputs as IPTVApp is no shared between egui & slint
 pub fn remove_downloaded_episode(
     app: &mut IPTVApp,
     episode_id: &u32,

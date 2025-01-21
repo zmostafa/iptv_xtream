@@ -105,6 +105,7 @@ export component MoviesView inherits Page {
     callback on_movie_selected(int, string);
     callback movie_display(string, image);
     callback on_movie_download(int, string);
+    callback on_movie_delete(int);
 
     header: category_name;
 
@@ -173,6 +174,11 @@ export component MoviesView inherits Page {
             root.is_downloading = true;
             root.on_movie_download(stream_id, extension);
         }
+
+        on_movie_delete => {
+            root.stream_id = stream_id;
+            root.on_movie_delete(stream_id);
+        }
     }
 }
 
@@ -197,6 +203,7 @@ export component MoviesCategoriesView inherits Page {
     callback on_category_selected(Category);
     callback on_movie_selected(int, string);
     callback on_movie_download(int, string);
+    callback on_movie_delete(string);
 
     Flickable {
         width: parent.width;
@@ -244,6 +251,11 @@ export component MoviesCategoriesView inherits Page {
             root.stream_id = stream_id;
             root.extension = extension;
             root.on_movie_download(stream_id, extension);
+        }
+
+        on_movie_delete => {
+            root.stream_id = stream_id;
+            root.on_movie_delete(stream_id);
         }
     }
 }
