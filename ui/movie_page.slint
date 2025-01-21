@@ -32,6 +32,13 @@ component MainContent inherits Rectangle {
         image-fit: fill;
     }
 
+    // Semi-Transparent Overlay
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        background: #ff950080; // Semi-transparent black (50% opacity)
+    }
+
     HorizontalLayout {
         spacing: 20px;
         // Left Side: Movie Poster and Play Button
