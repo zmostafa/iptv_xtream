@@ -538,13 +538,20 @@ impl App {
 
                 // Listen for progress updates and update the UI
                 let main_view_weak = main_view_weak.clone();
-                task::spawn(async move {
-                    while let Ok(guard) = progress.lock() {
-                        let progress_value = *guard;
+                // Spawn a task to listen for progress updates and update the UI
+                tokio::spawn(async move {
+                    loop {
+                        // Sleep for a short duration to avoid busy-waiting
+                        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+                        // Lock the progress mutex to read the current progress
+                        let progress_value = *progress.lock().unwrap();
                         log::info!("Download progress ..... {}", progress_value);
-                        let main_view_weak = main_view_weak.clone();
+
+                        // Update the UI with the current progress
+                        let main_view_weak_progress = main_view_weak.clone();
                         slint::invoke_from_event_loop(move || {
-                            if let Some(main_view) = main_view_weak.upgrade() {
+                            if let Some(main_view) = main_view_weak_progress.upgrade() {
                                 if progress_value < 1.0 {
                                     main_view.set_is_downloading(true);
                                 }
@@ -552,6 +559,19 @@ impl App {
                             }
                         })
                         .unwrap();
+
+                        // Stop updating progress when download is 100% and update UI
+                        if progress_value == 1.0 {
+                            let main_view_weak_downloaded = main_view_weak.clone();
+                            slint::invoke_from_event_loop(move || {
+                                if let Some(main_view) = main_view_weak_downloaded.upgrade() {
+                                    main_view.set_is_downloaded(true);
+                                    main_view.set_is_downloading(false); // Ensure downloading state is reset
+                                }
+                            })
+                            .unwrap();
+                            break; // Exit the loop when download is complete
+                        }
                     }
                 });
             });
