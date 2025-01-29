@@ -90,7 +90,7 @@ pub struct Serie {
     pub episode_run_time: String,
     pub rating: String,
     pub rating_5based: f32,
-    pub backdrop_path: Option<Vec<String>>,
+    // pub backdrop_path: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
