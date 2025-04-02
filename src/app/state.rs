@@ -205,8 +205,9 @@ impl IPTVApp {
         match fetch_all_series(&self.client, &self.api_url, &self.username, &self.password).await {
             Ok(series_info) => {
                 for serie_info in series_info {
+                    log::info!("Saving Serie {:?} for Category {:?}", &serie_info, &serie_info.category_id);
                     self.db
-                        .save_serie_info_for_all_series(&serie_info.category_id, &serie_info);
+                        .save_serie_info_for_all_series(&serie_info.category_id.clone().unwrap_or_default().as_ref(), &serie_info);
                 }
             }
             Err(err) => {

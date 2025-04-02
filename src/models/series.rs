@@ -72,7 +72,7 @@ pub struct SeriesInfo {
     // pub backdrop_path: Option<Vec<String>>,
     pub youtube_trailer: String,
     pub episode_run_time: String,
-    pub category_id: String,
+    pub category_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

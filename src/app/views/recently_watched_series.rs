@@ -89,9 +89,9 @@ pub fn render_recently_watched_series(app: &mut IPTVApp, ctx: &egui::Context) {
                                 if let serie_id = serie.series_id {
                                     app.view_stack.push(app.current_view.clone());
                                     app.current_view = AppView::SeriesDetail(
-                                        serie.category_id.clone(),
+                                        serie.category_id.clone().expect("REASON"),
                                         serie_id,
-                                        serie.category_id.to_string(),
+                                        serie.category_id.as_ref().expect("REASON").to_string(),
                                     );
                                 }
                             }

@@ -307,9 +307,9 @@ pub fn render_series_search(app: &mut IPTVApp, ctx: &egui::Context) {
                                     log::info!("Serie selected: {}", &serie_id);
                                     app.view_stack.push(app.current_view.clone());
                                     app.current_view = AppView::SeriesDetail(
-                                        serie.category_id.clone(),
+                                        serie.category_id.clone().expect("REASON"),
                                         serie_id,
-                                        serie.category_id.to_string(),
+                                        serie.category_id.as_ref().expect("REASON").to_string(),
                                     );
                                 }
                             }

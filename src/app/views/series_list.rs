@@ -89,7 +89,7 @@ pub fn render_series_list(
                                 if let serie_id = serie.series_id {
                                     app.view_stack.push(app.current_view.clone());
                                     app.current_view = AppView::SeriesDetail(
-                                        serie.category_id.clone(),
+                                        serie.category_id.clone().unwrap(),
                                         serie_id,
                                         category_name.to_string(),
                                     );
